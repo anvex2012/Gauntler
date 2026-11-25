@@ -6,7 +6,9 @@ Tutta l'analisi è **locale**: nessun file viene inviato su Internet.
 
 > **Installazione e uso passo per passo:** vedi [ISTRUZIONI.md](ISTRUZIONI.md).
 >
-> **Installazione rapida (macOS e Linux):**
+> **macOS:** scarica il `.dmg` dalle [Releases](https://github.com/anvex2012/Gauntler/releases/latest), trascina Gauntler in Applicazioni e aprilo: al primo avvio l'app installa da sola il comando `gauntler`, ClamAV e bsdtar.
+>
+> **Installazione da terminale (macOS e Linux, facoltativa):**
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
 > ```
@@ -127,7 +129,7 @@ Puoi anche aprire file direttamente: `npx electron . file1 file2`
 
 **Comando da terminale `gauntler`**: si installa **da solo** al primo avvio, sia dai sorgenti (`node cli/gauntler.js`) sia aprendo l'app desktop; se serve aggiunge `~/.local/bin` al PATH in `~/.zshrc` (blocco marcato `# >>> gauntler >>>`). Si può anche installare a mano: dall'app, Impostazioni → Sistema → Installa; oppure `npm run install-cli`. Insieme al comando si installano anche **ClamAV** (con le firme antivirus in `~/.gauntler/clamav`) e **bsdtar**, se mancano: Homebrew o pacchetto ufficiale su macOS, gestore di pacchetti su Linux, winget/MSI su Windows. Si ripete con `gauntler setup`. Per disattivare l'installazione automatica: `GAUNTLER_NO_AUTOINSTALL=1`. Crea `~/.local/bin/gauntler` (senza sudo) che usa il motore incluso in Gauntler.app, quindi funziona anche senza Node.js. `gauntler app [file…]` apre l'app desktop con i file da analizzare; `gauntler uninstall-command` rimuove il comando.
 
-**Pacchetti per la release**: `npm run release:build` crea in `release/upload/` il `.dmg` e lo `.zip` per macOS, lo `.zip` per Windows (cartella portatile con `Gauntler.exe`) e il `.tar.gz` per Linux, più `SHA256SUMS.txt`. Windows e Linux vengono preparati da macOS con `@electron/packager`, senza Wine.
+**Pacchetti per la release**: `npm run release:build` crea in `release/upload/` il `.dmg` e lo `.zip` per macOS, lo `.zip` per Windows (cartella portatile con `Gauntler.exe`) e il `.tar.gz` per Linux, più `SHA256SUMS.txt`. Windows e Linux vengono preparati da macOS con `@electron/packager`, senza Wine. Il `.dmg` ha la finestra di installazione con sfondo e istruzioni (`build/dmg-background.png`, rigenerabile con `npx electron scripts/build-dmg-background.js`), creata con `dmgbuild` (Python 3, installato in automatico in `node_modules/.cache`).
 
 **Icona dell'app**: il disegno è in `build/icon.svg`; `npm run icon` rigenera `build/icon.png` (Windows/Linux), `build/icon.icns` (macOS) e il logo dell'interfaccia `src/assets/logo.png`.
 

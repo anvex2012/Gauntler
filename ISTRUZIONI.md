@@ -61,32 +61,33 @@ In entrambi i casi, **dopo il primo avvio il comando `gauntler` funziona da qual
 
 ## 2. Installazione dell'app desktop (macOS)
 
-### Metodo 1 — con un comando (consigliato)
-Apri il **Terminale** e incolla:
+### Metodo 1 — dal file `.dmg`, come una normale app (senza terminale)
+1. Scarica `Gauntler-<versione>-macOS-arm64.dmg` dalla pagina [Releases](https://github.com/anvex2012/Gauntler/releases/latest) e aprilo con doppio clic.
+2. Nella finestra che si apre, **trascina Gauntler sulla cartella Applicazioni**.
+3. Apri **Gauntler** da Applicazioni (o dal Launchpad). **Solo la prima volta**, macOS mostra *"Apple non può verificare che Gauntler sia privo di malware"*. Succede perché l'app non è notarizzata da Apple (serve un abbonamento a pagamento Apple Developer). Per sbloccarla:
+   1. premi **Fine** (non "Sposta nel Cestino");
+   2. apri **Impostazioni di Sistema → Privacy e sicurezza**;
+   3. scorri fino a *"Gauntler è stato bloccato…"* e premi **Apri comunque**;
+   4. conferma con la password o con Touch ID.
+
+   Dalla volta successiva si apre normalmente. Su macOS 15 e successivi il vecchio "clic destro → Apri" non basta più.
+4. **Fine: non devi fare altro.** Al primo avvio l'app installa da sola, in sottofondo:
+   - il comando `gauntler` per il terminale;
+   - l'antivirus **ClamAV**, con le firme;
+   - **bsdtar**.
+
+   L'avanzamento compare in alto nella finestra. Se serve, macOS chiede la password di amministratore con la sua finestra.
+
+### Metodo 2 — con un comando nel Terminale (facoltativo)
+Se preferisci il terminale, questo comando installa e apre l'app **senza il blocco del primo avvio**, perché i file scaricati con `curl` non vengono messi in quarantena:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
 ```
 Lo script:
-- scarica l'ultima versione;
-- ne verifica l'impronta SHA-256;
-- la installa in **Applicazioni**;
-- apre l'app.
+- scarica l'ultima versione e ne verifica l'impronta SHA-256;
+- la installa in **Applicazioni** e la apre.
 
-**Non compare nessun blocco di macOS**, perché i file scaricati con `curl` non vengono messi in quarantena. Lo stesso comando serve anche per **aggiornare** Gauntler. Funziona anche su Linux.
-
-### Metodo 2 — dal file `.dmg`
-1. Apri il `.dmg` e trascina **Gauntler** sulla cartella **Applicazioni**.
-2. Fai doppio clic su Gauntler in Applicazioni. **La prima volta macOS la blocca** con un messaggio come *"Apple non può verificare che Gauntler sia privo di malware"*. Succede perché l'app non è notarizzata da Apple: la notarizzazione richiede l'abbonamento a pagamento Apple Developer. Per sbloccarla, una volta sola:
-   1. nel messaggio premi **Fine** (non "Sposta nel Cestino");
-   2. apri **Impostazioni di Sistema → Privacy e sicurezza**;
-   3. scorri fino a *"Gauntler è stato bloccato…"* e premi **Apri comunque**;
-   4. conferma con la password o con Touch ID, poi premi **Apri**.
-
-   In alternativa, dal Terminale:
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/Gauntler.app
-   ```
-   (Su macOS 15 e successivi il vecchio metodo "clic destro → Apri" non basta più.)
+Serve anche per aggiornare e funziona anche su Linux.
 
 ### Dopo l'installazione
 - Al primo avvio l'app installa da sola il comando `gauntler` per il terminale e, in sottofondo, **ClamAV** e **bsdtar** (vedi sezione 5).
@@ -276,8 +277,8 @@ L'app della release è per Apple Silicon (M1 e successivi). Su un Mac Intel usa 
 
 **macOS dice che l'app è danneggiata, che Apple non può verificarla o che non si può aprire**
 L'app non è notarizzata da Apple, e macOS blocca le app scaricate dal browser. Hai due soluzioni:
-- **Impostazioni di Sistema → Privacy e sicurezza → Apri comunque** (vedi sezione 2, metodo 2);
-- oppure reinstalla con il comando del metodo 1, che non viene bloccato:
+- **Impostazioni di Sistema → Privacy e sicurezza → Apri comunque** (vedi sezione 2, metodo 1);
+- oppure reinstalla con il comando del metodo 2, che non viene bloccato:
   ```bash
   curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
   ```

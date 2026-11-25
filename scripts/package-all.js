@@ -44,12 +44,20 @@ const macZip = path.join(OUT, `Gauntler-${V}-macOS-${macTag}.zip`);
 run('ditto', ['-c', '-k', '--norsrc', '--keepParent', APP, macZip]);
 
 step('macOS: dmg');
-const dmgSrc = path.join(WORK, 'dmg');
-fs.mkdirSync(dmgSrc);
-run('ditto', [APP, path.join(dmgSrc, 'Gauntler.app')]);
-fs.symlinkSync('/Applications', path.join(dmgSrc, 'Applicazioni'));
-// Only the app and the Applications shortcut: nothing else to drag
-run('hdiutil', ['create', '-quiet', '-volname', `Gauntler ${V}`, '-srcfolder', dmgSrc, '-fs', 'HFS+', '-format', 'UDZO', '-imagekey', 'zlib-level=9', '-ov', path.join(OUT, `Gauntler-${V}-macOS-${macTag}.dmg`)]);
+const dmgOut = path.join(OUT, `Gauntler-${V}-macOS-${macTag}.dmg`);
+if (!fs.existsSync(path.join(ROOT, 'build', 'dmg-background.png'))) run(path.join(ROOT, 'node_modules', '.bin', 'electron'), [path.join(__dirname, 'build-dmg-background.js')]);
+// dmgbuild (Python) writes the window layout without driving the Finder: kept in a private venv
+const venv = path.join(ROOT, 'node_modules', '.cache', 'gauntler-dmgbuild');
+const py = path.join(venv, 'bin', 'python3');
+try { execFileSync(py, ['-c', 'import dmgbuild'], { stdio: 'ignore' }); }
+catch {
+  console.log('  preparo dmgbuild (una volta sola)…');
+  run('python3', ['-m', 'venv', venv]);
+  run(py, ['-m', 'pip', 'install', '-q', '--disable-pip-version-check', 'dmgbuild']);
+}
+run(py, ['-m', 'dmgbuild', '-s', path.join(__dirname, 'dmg-settings.py'),
+  '-D', `app=${APP}`, '-D', `background=${path.join(ROOT, 'build', 'dmg-background.png')}`, '-D', `icon=${path.join(ROOT, 'build', 'icon.icns')}`,
+  `Gauntler ${V}`, dmgOut], { stdio: ['ignore', 'ignore', 'inherit'] });
 
 /* ── Common app folder for Windows and Linux (same content as the macOS app) ── */
 step('Codice dell\'app per Windows e Linux');
