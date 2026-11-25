@@ -61,14 +61,37 @@ In entrambi i casi, **dopo il primo avvio il comando `gauntler` funziona da qual
 
 ## 2. Installazione dell'app desktop (macOS)
 
-### Dal file `.dmg` (consigliato) o `.zip`
-1. Apri il `.dmg` e trascina **Gauntler.app** sulla cartella **Applicazioni** (con il `.zip`: estrailo e sposta Gauntler.app in Applicazioni).
-2. Aprila con doppio clic. L'app non è firmata con un certificato Apple, quindi la prima volta macOS la blocca:
-   - **clic destro sull'app → Apri → Apri**;
-   - se non compare "Apri": **Impostazioni di Sistema → Privacy e sicurezza → Apri comunque**;
-   - in alternativa, dal terminale: `xattr -dr com.apple.quarantine /Applications/Gauntler.app`.
-3. Al primo avvio l'app installa da sola il comando `gauntler` per il terminale e, in sottofondo, **ClamAV** e **bsdtar** (vedi sezione 5). **Funziona anche se Node.js non è installato**, perché usa il motore incluso nell'app.
-4. Apri una **nuova** finestra del terminale e scrivi `gauntler`.
+### Metodo 1 — con un comando (consigliato)
+Apri il **Terminale** e incolla:
+```bash
+curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
+```
+Lo script:
+- scarica l'ultima versione;
+- ne verifica l'impronta SHA-256;
+- la installa in **Applicazioni**;
+- apre l'app.
+
+**Non compare nessun blocco di macOS**, perché i file scaricati con `curl` non vengono messi in quarantena. Lo stesso comando serve anche per **aggiornare** Gauntler. Funziona anche su Linux.
+
+### Metodo 2 — dal file `.dmg`
+1. Apri il `.dmg` e trascina **Gauntler** sulla cartella **Applicazioni**.
+2. Fai doppio clic su Gauntler in Applicazioni. **La prima volta macOS la blocca** con un messaggio come *"Apple non può verificare che Gauntler sia privo di malware"*. Succede perché l'app non è notarizzata da Apple: la notarizzazione richiede l'abbonamento a pagamento Apple Developer. Per sbloccarla, una volta sola:
+   1. nel messaggio premi **Fine** (non "Sposta nel Cestino");
+   2. apri **Impostazioni di Sistema → Privacy e sicurezza**;
+   3. scorri fino a *"Gauntler è stato bloccato…"* e premi **Apri comunque**;
+   4. conferma con la password o con Touch ID, poi premi **Apri**.
+
+   In alternativa, dal Terminale:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Gauntler.app
+   ```
+   (Su macOS 15 e successivi il vecchio metodo "clic destro → Apri" non basta più.)
+
+### Dopo l'installazione
+- Al primo avvio l'app installa da sola il comando `gauntler` per il terminale e, in sottofondo, **ClamAV** e **bsdtar** (vedi sezione 5).
+- **Funziona anche se Node.js non è installato**, perché usa il motore incluso nell'app.
+- Apri una **nuova** finestra del terminale e scrivi `gauntler`.
 
 ### Se vuoi creare l'app dai sorgenti
 Serve Node.js e una sola volta `npm install`:
@@ -251,11 +274,13 @@ Il selettore grafico c'è solo su macOS. Su Linux e Windows trascina il file nel
 **Su un Mac con processore Intel l'app non si apre**
 L'app della release è per Apple Silicon (M1 e successivi). Su un Mac Intel usa la versione da terminale (sezione 1), oppure crea l'app sul tuo Mac con `npm install && npm run package`.
 
-**macOS dice che l'app è danneggiata o non si può aprire**
-Clic destro sull'app → Apri. Se non basta:
-```bash
-xattr -dr com.apple.quarantine /Applications/Gauntler.app
-```
+**macOS dice che l'app è danneggiata, che Apple non può verificarla o che non si può aprire**
+L'app non è notarizzata da Apple, e macOS blocca le app scaricate dal browser. Hai due soluzioni:
+- **Impostazioni di Sistema → Privacy e sicurezza → Apri comunque** (vedi sezione 2, metodo 2);
+- oppure reinstalla con il comando del metodo 1, che non viene bloccato:
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
+  ```
 
 **Il comando `gauntler` usa una versione vecchia**
 Se lo hai installato dai sorgenti, `gauntler` usa sempre il codice della cartella del progetto. Se lo usi tramite l'app, sostituisci l'app in Applicazioni con quella nuova.

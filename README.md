@@ -5,6 +5,11 @@ Analizzatore di sicurezza per **qualsiasi tipo di file**: app desktop (Electron 
 Tutta l'analisi è **locale**: nessun file viene inviato su Internet.
 
 > **Installazione e uso passo per passo:** vedi [ISTRUZIONI.md](ISTRUZIONI.md).
+>
+> **Installazione rapida (macOS e Linux):**
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
+> ```
 
 Ogni file riceve un **punteggio generale da 1 a 100** (100 = sicuro) e un punteggio per ogni criterio.
 

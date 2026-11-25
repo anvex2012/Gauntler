@@ -48,7 +48,7 @@ const dmgSrc = path.join(WORK, 'dmg');
 fs.mkdirSync(dmgSrc);
 run('ditto', [APP, path.join(dmgSrc, 'Gauntler.app')]);
 fs.symlinkSync('/Applications', path.join(dmgSrc, 'Applicazioni'));
-fs.copyFileSync(path.join(ROOT, 'licenza-gauntler.txt'), path.join(dmgSrc, 'Licenza.txt'));
+// Only the app and the Applications shortcut: nothing else to drag
 run('hdiutil', ['create', '-quiet', '-volname', `Gauntler ${V}`, '-srcfolder', dmgSrc, '-fs', 'HFS+', '-format', 'UDZO', '-imagekey', 'zlib-level=9', '-ov', path.join(OUT, `Gauntler-${V}-macOS-${macTag}.dmg`)]);
 
 /* ── Common app folder for Windows and Linux (same content as the macOS app) ── */
