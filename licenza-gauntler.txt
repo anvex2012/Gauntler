@@ -1,0 +1,106 @@
+Creato da anvex2012
+
+# GAUNTLER – CUSTOM SOURCE CODE LICENSE
+**Version 1.0 – 2026**
+
+**Copyright © 2026 anvex2012**  
+**Original Author and Creator of the Gauntler Project.**
+
+## 1. GRANT OF RIGHTS
+
+The original author grants anyone the right to use, inspect, analyze, execute, copy, and modify the Gauntler source code, subject to the terms and conditions established in this license.
+
+The following activities are permitted:
+- Studying the software and its internal functionality.
+- Modifying the source code.
+- Fixing bugs and security vulnerabilities.
+- Adding new features and improvements.
+- Developing derivative versions of the software.
+- Using the software for personal, educational, and professional purposes, provided that it is not distributed for payment.
+
+## 2. ORIGINAL AUTHOR ATTRIBUTION
+
+Gauntler is a project originally conceived and developed by **anvex2012**.
+
+Attribution to the original author is mandatory and must be preserved in every version of the project.
+
+Specifically:
+- Every original source code file must contain the statement `Created by anvex2012`.
+- Modified source files must retain the original author's attribution.
+- Removing, hiding, altering, or replacing the `anvex2012` username is strictly prohibited.
+- Anyone modifying the source code may add their own username as the modifier or contributor.
+- No modifier may claim to be the original creator of the project.
+
+Modifying the source code does not transfer ownership or original authorship of the project.
+
+## 3. MODIFICATIONS AND DERIVATIVE WORKS
+
+Users are permitted to modify, improve, update, and extend Gauntler.
+
+Anyone developing a modified version must:
+- Preserve the attribution to `anvex2012`.
+- Clearly identify their own contributions.
+- Specify the main modifications made.
+- Include a copy of this license.
+- Not present their modifications as part of the original project without authorization.
+
+The author of modifications retains the rights to their own original contributions, to the extent permitted by applicable law, without acquiring ownership of the original source code.
+
+## 4. REDISTRIBUTION
+
+Redistribution of Gauntler, whether in its original or modified form, is permitted only under the following conditions:
+
+1. Distribution must be completely free of charge.
+2. The source code must remain publicly accessible.
+3. This license must be included.
+4. The original copyright notice must be preserved.
+5. `anvex2012` must be credited as the original creator.
+6. All individuals who modify the software must be properly identified.
+7. No additional restrictions incompatible with this license may be imposed.
+
+Selling the software, its copies, or derivative versions, or charging users for access to the source code, is strictly prohibited.
+
+## 5. PROHIBITION OF MISAPPROPRIATION
+
+The following activities are strictly prohibited:
+- Claiming to be the original author of Gauntler.
+- Removing the `anvex2012` attribution from source files.
+- Publishing copies without the required author attribution.
+- Registering the original project as one's own creation.
+- Presenting a modified version as if it had been entirely developed by the person who modified it.
+
+## 6. THIRD-PARTY COMPONENTS AND LIBRARIES
+
+Any third-party libraries, frameworks, dependencies, and external components included in or used by Gauntler remain subject to their respective licenses.
+
+This license does not modify, replace, or override the rights granted by their respective copyright holders.
+
+## 7. DISCLAIMER OF WARRANTY
+
+Gauntler is provided "AS IS", without warranties of any kind, whether express or implied.
+
+There is no guarantee that the software will be free from errors, vulnerabilities, interruptions, or malfunctions.
+
+The original author shall not be held liable for damages arising from the use, modification, or distribution of the software, to the extent permitted by applicable law.
+
+## 8. LICENSE VIOLATIONS
+
+Failure to comply with the terms and conditions established in this license results in the termination of the permissions granted herein, to the extent permitted by applicable law.
+
+Any person responsible for a violation must cease unauthorized use and distribution of the software.
+
+All rights and remedies available under applicable law are reserved.
+
+## 9. VALIDITY AND ACCEPTANCE
+
+This license applies to the original Gauntler source code and its derivative versions distributed under the conditions established herein.
+
+The use, modification, and redistribution of the software are permitted exclusively in compliance with the provisions of this document.
+
+---
+
+**PROJECT:** Gauntler  
+**ORIGINAL AUTHOR:** anvex2012  
+**COPYRIGHT:** © 2026 anvex2012  
+**LICENSE:** Gauntler Custom Source Code License  
+**VERSION:** 1.0  

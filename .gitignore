@@ -1,0 +1,8 @@
+# Creato da anvex2012
+node_modules/
+dist/
+release/
+.DS_Store
+*.log
+.claude/settings.local.json
+.vite/
