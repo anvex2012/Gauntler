@@ -27,8 +27,20 @@ function engineFingerprint() {
   return FINGERPRINT;
 }
 
+/** ClamAV state: results are recomputed when ClamAV is installed or its signatures change */
+function clamavStamp(options) {
+  if (options.noClamav) return 'off';
+  try {
+    if (!require('./analyzers/clamav').available()) return 'none';
+    const db = require('./setup').ownDatabase();
+    if (!db) return 'system';
+    return fs.readdirSync(db).filter((f) => /^(main|daily)\.c[lv]d$/.test(f)).map((f) => f + fs.statSync(path.join(db, f)).mtimeMs).join(',');
+  } catch { return 'unknown'; }
+}
+
 function key(sha256, options) {
   const relevant = {
+    clamav: clamavStamp(options),
     detail: !!options.detail, passwords: options.passwords || [], only: options.only || null, skip: options.skip || null,
     noClamav: !!options.noClamav, online: !!options.online, suppress: options.suppress || [], weights: options.weights || {},
     allowlist: (options.allowlist || []).includes(sha256), yara: options.yara || [], limits: options.limits || null,

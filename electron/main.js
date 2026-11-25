@@ -130,6 +130,25 @@ ipcMain.handle('set-theme', (_e, theme) => {
 });
 
 // Terminal command "gauntler" (~/.local/bin): fixed location, never overwrites a file it did not create
+// ---- Components (ClamAV + signatures, bsdtar): installed in the background on first launch ----
+const setup = require('../core/setup');
+let setupState = { running: false, text: '', result: null };
+const sendSetup = () => { if (win && !win.isDestroyed()) win.webContents.send('setup', setupState); };
+async function runSetup() {
+  if (setupState.running) return setupState;
+  setupState = { running: true, text: 'Installazione dei componenti (ClamAV, bsdtar)…', result: null };
+  sendSetup();
+  let result;
+  try {
+    result = await setup.run({ mode: 'gui', log: (text, kind) => { if (kind === 'step') { setupState = { ...setupState, text }; sendSetup(); } } });
+  } catch (e) { result = { complete: false, error: e.message }; }
+  setupState = { running: false, text: '', result };
+  sendSetup();
+  return setupState;
+}
+ipcMain.handle('setup-state', () => setupState);
+ipcMain.handle('setup-run', () => runSetup());
+
 ipcMain.handle('cli-status', () => { try { return { ok: true, ...cliInstall.status() }; } catch (e) { return { ok: false, error: e.message }; } });
 ipcMain.handle('cli-install', () => { try { return { ok: true, ...cliInstall.install() }; } catch (e) { return { ok: false, error: e.message }; } });
 ipcMain.handle('cli-uninstall', () => { try { cliInstall.uninstall(); return { ok: true, ...cliInstall.status() }; } catch (e) { return { ok: false, error: e.message }; } });
@@ -138,7 +157,13 @@ ipcMain.handle('reveal', (_e, p) => { if (typeof p === 'string' && fs.existsSync
 
 app.whenReady().then(() => {
   // First launch: also make the app usable from the terminal ("gauntler"), without overwriting an existing command
-  setTimeout(() => { const r = cliInstall.autoInstall(); if (r?.error) console.warn('gauntler: comando da terminale non installato:', r.error); }, 1500);
+  setTimeout(() => {
+    const r = cliInstall.autoInstall();
+    if (r?.error) console.warn('gauntler: comando da terminale non installato:', r.error);
+    // Then the components: everything missing on first launch, otherwise only a quiet signature refresh
+    if (setup.needsAuto()) runSetup();
+    else setup.refreshDatabase().catch(() => {});
+  }, 1500);
   // macOS: Dock icon also when running unpackaged (npm start / npm run dev)
   if (process.platform === 'darwin' && app.dock && fs.existsSync(ICON)) app.dock.setIcon(ICON);
   createWindow();

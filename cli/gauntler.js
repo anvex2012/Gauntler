@@ -13,10 +13,11 @@ const disasm = require('./commands/disasm');
 const sanitize = require('./commands/sanitize');
 const appCmds = require('./commands/app');
 const tui = require('./tui');
+const setupCmd = require('./commands/setup');
 
 const shell = { summary: tui.summary, HELP: tui.HELP, run: (argv) => (argv.includes('-h') || argv.includes('--help') ? (console.log(tui.HELP), 0) : tui.run()) };
-const COMMANDS = { shell, scan, sanitize, watch, disasm, ...manage, ...appCmds };
-const ALIASES = { i: 'shell', tui: 'shell', interattivo: 'shell', s: 'scan', w: 'watch', d: 'disasm', dis: 'disasm', cdr: 'sanitize', clean: 'sanitize', q: 'quarantine', h: 'history', cfg: 'config', allow: 'trust', gui: 'app', apri: 'app', open: 'app' };
+const COMMANDS = { shell, setup: setupCmd, scan, sanitize, watch, disasm, ...manage, ...appCmds };
+const ALIASES = { componenti: 'setup', 'installa-componenti': 'setup', i: 'shell', tui: 'shell', interattivo: 'shell', s: 'scan', w: 'watch', d: 'disasm', dis: 'disasm', cdr: 'sanitize', clean: 'sanitize', q: 'quarantine', h: 'history', cfg: 'config', allow: 'trust', gui: 'app', apri: 'app', open: 'app' };
 
 function version() { return require('../core').VERSION; }
 
@@ -97,6 +98,12 @@ async function main() {
   let firstRun = null;
   if (process.stdout.isTTY && !['install-command', 'uninstall-command'].includes(argv[0])) firstRun = require('./install').autoInstall();
   const welcome = firstRun && !firstRun.error ? firstRun : null;
+  // First interactive run: install ClamAV (with signatures) and bsdtar if they are missing
+  const quick = ['setup', 'componenti', 'installa-componenti', 'install-command', 'uninstall-command', 'completion', '--version', '-V', '-h', '--help', 'help'];
+  if (process.stdin.isTTY && process.stdout.isTTY && !quick.includes(argv[0]) && require('../core/setup').needsAuto()) {
+    if (welcome) { console.error(`${c.green('✔')} Comando "gauntler" installato — da una nuova finestra del terminale basta scrivere ${c.cyan('gauntler')}`); }
+    await setupCmd.runInTerminal({ auto: true });
+  }
   // No arguments in an interactive terminal: full-screen interface
   if (!argv.length && process.stdin.isTTY && process.stdout.isTTY && !process.env.GAUNTLER_NO_TUI) return tui.run({ firstRun: welcome });
   if (welcome) console.error(`${c.green('✔')} ${welcome.installed ? 'Comando "gauntler" installato' : 'Comando "gauntler" aggiunto al PATH'}${welcome.rc ? ` · PATH aggiornato in ${welcome.rc}` : ''} — da una ${c.bold('nuova finestra del terminale')} basta scrivere ${c.cyan('gauntler')}\n`);

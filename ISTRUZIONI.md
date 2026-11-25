@@ -48,7 +48,8 @@ In entrambi i casi, **dopo il primo avvio il comando `gauntler` funziona da qual
    Al primo avvio Gauntler:
    - crea il comando `gauntler` in `~/.local/bin` (senza password di amministratore);
    - se serve, aggiunge `~/.local/bin` al PATH nel file di avvio della shell (`~/.zshrc` su macOS);
-   - ti conferma l'installazione con il messaggio **✔ Comando "gauntler" installato**.
+   - ti conferma l'installazione con il messaggio **✔ Comando "gauntler" installato**;
+   - installa i componenti aggiuntivi **ClamAV** (antivirus, con le firme) e **bsdtar** se mancano (vedi sezione 5).
 4. **Apri una nuova finestra del terminale.** Da ora, ovunque tu sia, basta scrivere:
    ```bash
    gauntler
@@ -66,7 +67,7 @@ In entrambi i casi, **dopo il primo avvio il comando `gauntler` funziona da qual
    - **clic destro sull'app → Apri → Apri**;
    - se non compare "Apri": **Impostazioni di Sistema → Privacy e sicurezza → Apri comunque**;
    - in alternativa, dal terminale: `xattr -dr com.apple.quarantine /Applications/Gauntler.app`.
-3. Al primo avvio l'app installa da sola il comando `gauntler` per il terminale. **Funziona anche se Node.js non è installato**, perché usa il motore incluso nell'app.
+3. Al primo avvio l'app installa da sola il comando `gauntler` per il terminale e, in sottofondo, **ClamAV** e **bsdtar** (vedi sezione 5). **Funziona anche se Node.js non è installato**, perché usa il motore incluso nell'app.
 4. Apri una **nuova** finestra del terminale e scrivi `gauntler`.
 
 ### Se vuoi creare l'app dai sorgenti
@@ -199,12 +200,32 @@ gauntler <comando> --help                 # aiuto di un comando
 
 ---
 
-## 5. Componenti facoltativi
+## 5. Componenti aggiuntivi: ClamAV e bsdtar
 
-Gauntler funziona senza installare nient'altro. Questi componenti aggiungono controlli:
+**Si installano da soli** la prima volta che avvii Gauntler, dal terminale (`gauntler`, oppure `gauntler install-command`) o aprendo l'app desktop.
 
-| Componente | A cosa serve | Installazione (macOS) |
+| Componente | A cosa serve | Come viene installato |
 |---|---|---|
+| **ClamAV** + firme antivirus | Scansione antivirus aggiuntiva (milioni di firme) | macOS: Homebrew, oppure il pacchetto ufficiale ClamAV se Homebrew manca · Linux: apt / dnf / yum / pacman / zypper · Windows: winget, oppure il pacchetto ufficiale `.msi` |
+| **bsdtar** | Archivi RAR, 7z, ISO, CAB | macOS e Windows 10/11: già incluso nel sistema · Linux: `libarchive-tools` / `bsdtar` |
+
+- Può comparire la richiesta della **password di amministratore**. Nel terminale con `sudo`; nell'app con la finestra di sistema (macOS, Linux) o con l'autorizzazione di Windows. Con Homebrew su macOS la password non serve.
+- Le **firme antivirus** (circa 200 MB) vengono scaricate in `~/.gauntler/clamav`. Si aggiornano con `gauntler update` e, nell'app, da sole ogni pochi giorni, senza password.
+- Nel terminale puoi **saltare** l'installazione con `Ctrl+C`. Nell'app, mentre installa, in alto compare l'avanzamento; se ClamAV manca, il pulsante **Installa ClamAV** in alto la riavvia.
+
+Comandi utili:
+```bash
+gauntler setup            # installa ciò che manca (puoi ripeterlo quando vuoi)
+gauntler setup --status   # mostra cosa è installato
+gauntler update           # aggiorna le firme antivirus e gli elenchi di malware
+gauntler doctor           # verifica completa dell'ambiente
+```
+
+Per non installare nulla in automatico: `GAUNTLER_NO_AUTOINSTALL=1` (vale anche per il comando `gauntler`).
+
+Facoltativo, per gli archivi RAR più recenti: **7-Zip** (`brew install sevenzip` su macOS).
+
+---|---|---|
 | ClamAV | Scansione antivirus aggiuntiva | `brew install clamav` |
 | 7-Zip | Archivi RAR, 7z, ISO | `brew install sevenzip` |
 

@@ -48,13 +48,14 @@ Se l'app è già aperta, vengono aggiunti all'elenco.
 const installCommand = {
   summary: 'Installa il comando "gauntler" nel terminale (~/.local/bin)',
   HELP: `
-${c.bold('gauntler install-command')} [--dir <cartella>]
+${c.bold('gauntler install-command')} [--dir <cartella>] [--skip-components]
 
-Crea il comando "gauntler" in ~/.local/bin (nessuna password di amministratore).
+Crea il comando "gauntler" in ~/.local/bin (nessuna password di amministratore) e installa
+i componenti che mancano: ClamAV con le firme antivirus e bsdtar (salta con --skip-components).
 Il comando usa il motore incluso in Gauntler.app, quindi funziona anche senza Node.js.
 `,
   async run(argv, { parse }) {
-    const a = parse(argv, { dir: { type: 'string' } });
+    const a = parse(argv, { dir: { type: 'string' }, skipComponents: { type: 'bool' } });
     if (a.help) { console.log(installCommand.HELP); return 0; }
     const s = inst.install(a.dir ? path.resolve(a.dir) : undefined);
     console.log(`${c.green('✔')} Comando installato: ${s.path}`);
@@ -62,6 +63,8 @@ Il comando usa il motore incluso in Gauntler.app, quindi funziona anche senza No
     const rc = s.inPath ? null : inst.ensurePath(s.dir);
     if (rc) console.log(`  PATH aggiornato in ${rc}: ${c.bold('apri una nuova finestra del terminale')} e scrivi ${c.cyan('gauntler')}`);
     else console.log(`\n  Prova:  ${c.cyan('gauntler --help')}`);
+    // Components (ClamAV + signatures, bsdtar): installed together with the command
+    if (!a.skipComponents && process.stdout.isTTY && require('../../core/setup').needsAuto()) await require('./setup').runInTerminal({ auto: true });
     return 0;
   },
 };

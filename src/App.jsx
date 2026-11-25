@@ -85,6 +85,13 @@ export default function App() {
   const ctx = useMemo(() => ({ settings, set: setPrefs }), [settings, setPrefs]);
 
   useEffect(() => { window.gauntler?.env().then(setEnv); }, []);
+  // Components installed in the background (first launch): progress in the top bar, then fresh status
+  const [setupSt, setSetupSt] = useState(null);
+  useEffect(() => {
+    if (!window.gauntler?.onSetup) return undefined;
+    window.gauntler.setupState().then(setSetupSt);
+    return window.gauntler.onSetup((st) => { setSetupSt(st); if (!st.running) window.gauntler.env().then(setEnv); });
+  }, []);
   const update = (id, patch) => setItems((list) => list.map((it) => (it.id === id ? { ...it, ...patch } : it)));
 
   const addPaths = useCallback(async (paths) => {
@@ -177,7 +184,10 @@ export default function App() {
           <span className="brand-sub">Analisi di sicurezza dei file</span>
         </div>
         <div className="top-right">
-          {env && <span className={`status ${env.clamav ? 'on' : ''}`} title={env.clamav ? 'ClamAV installato: scansione antivirus attiva' : 'Installa ClamAV per una scansione antivirus aggiuntiva (brew install clamav)'}><i className="dot" />ClamAV</span>}
+          {setupSt?.running && <span className="status" role="status" title="Gauntler sta installando i componenti aggiuntivi"><span className="spin" />{setupSt.text}</span>}
+          {env && !setupSt?.running && (env.clamav
+            ? <span className="status on" title="ClamAV installato: scansione antivirus attiva"><i className="dot" />ClamAV</span>
+            : <button className="status status-btn" onClick={() => window.gauntler.setupRun()} title="ClamAV non installato: clic per installarlo (antivirus aggiuntivo)"><i className="dot" />Installa ClamAV</button>)}
           {env && <span className={`status ${env.sevenZip ? 'on' : ''}`} title={env.sevenZip ? '7-Zip disponibile per RAR/7z/ISO' : 'Archivi RAR/7z/ISO aperti con bsdtar'}><i className="dot" />{env.sevenZip ? '7-Zip' : 'bsdtar'}</span>}
           <span className="top-div" aria-hidden />
           <button className={`btn btn-quiet btn-icon ${showSettings ? 'on' : ''}`} onClick={() => setShowSettings(true)} title="Impostazioni (⌘,)" aria-label="Impostazioni" aria-haspopup="dialog"><Icon name="settings" size={16} /></button>

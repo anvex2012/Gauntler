@@ -261,8 +261,12 @@ function decodeBlobs(text, budget = limits.standalone()) {
 
 /* ---------------- Extraction with system tools ---------------- */
 let TOOLS = null;
+let TOOLS_AT = 0;
+function resetTools() { TOOLS = null; }
 function tools() {
-  if (TOOLS) return TOOLS;
+  // Tools that were missing are looked up again after a minute (they may have just been installed)
+  if (TOOLS && (TOOLS.bsdtar || Date.now() - TOOLS_AT < 60000)) return TOOLS;
+  TOOLS_AT = Date.now();
   const has = (cmd, args = ['--version']) => { try { const r = spawnSync(cmd, args, { encoding: 'utf8', timeout: 5000 }); return r.status === 0 || r.stdout || r.stderr ? (r.stdout || '') + (r.stderr || '') : null; } catch { return null; } };
   const tarV = has('tar') || '';
   TOOLS = {
@@ -463,4 +467,4 @@ async function systemExtract(buffer, typeId, filePath, passwords = [], budget = 
   }
 }
 
-module.exports = { strings, pdf, office, rtf, decodeBlobs, systemExtract, runWatched, magicName, printableRatio, tools };
+module.exports = { strings, pdf, office, rtf, decodeBlobs, systemExtract, runWatched, magicName, printableRatio, tools, resetTools };

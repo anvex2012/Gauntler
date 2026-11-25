@@ -226,7 +226,7 @@ ${c.bold('gauntler lookup')} <file|sha256…> [--json]
 
 /* ---------------- update ---------------- */
 const updateCmd = {
-  summary: 'Scarica gli elenchi aggiornati di impronte di malware',
+  summary: 'Scarica gli elenchi aggiornati di impronte di malware e le firme di ClamAV',
   HELP: `\n${c.bold('gauntler update')}  Scarica i feed pubblici di impronte malevole (abuse.ch MalwareBazaar) in ${paths.HOME}/feeds\n  ${c.dim('Vengono poi usati offline da ogni analisi. Nessun dato tuo viene inviato.')}\n`,
   async run(argv, { parse }) {
     const a = parse(argv, {});
@@ -239,6 +239,13 @@ const updateCmd = {
       else { ok++; console.log(`  ${c.green('✔')} ${r.name}: ${r.count.toLocaleString('it-IT')} impronte`); }
     }
     console.log(c.dim(`Impronte malevole disponibili offline: ${require('../../core/analyzers/signatures').knownCount().toLocaleString('it-IT')}`));
+    // ClamAV signatures managed by Gauntler (~/.gauntler/clamav): incremental update, no password
+    const setup = require('../../core/setup');
+    if (setup.ownDatabase()) {
+      console.log(c.dim('Aggiornamento delle firme di ClamAV…'));
+      const done = await setup.updateDatabase({ log: (t, k) => { if (k === 'err') console.log(`  ${c.yellow('✗')} ${t}`); } });
+      if (done) console.log(`  ${c.green('✔')} Firme ClamAV aggiornate`);
+    } else if (!setup.status().clamav) console.log(c.dim('ClamAV non installato: installalo con "gauntler setup"'));
     return ok ? 0 : 3;
   },
 };
@@ -285,11 +292,12 @@ const doctorCmd = {
     const rows = [
       [ok(true), 'Motore Gauntler', `v${core.VERSION} · ${core.analyzers.length} criteri · impronta ${cache.engineFingerprint()}`],
       [ok(true), 'Node.js', `${process.version} · ${require('os').cpus().length} core`],
-      [ok(core.clamavAvailable()), 'ClamAV', core.clamavAvailable() ? 'disponibile' : 'non installato → brew install clamav && freshclam'],
+      [ok(core.clamavAvailable()), 'ClamAV', core.clamavAvailable() ? 'disponibile' : 'non installato → gauntler setup'],
       [ok(core.yaraAvailable()), 'YARA', core.yaraAvailable() ? `disponibile · ${yaraFiles.length} file di regole` : `non installato → brew install yara${yaraFiles.length ? ` (${yaraFiles.length} regole pronte)` : ''}`],
       [ok(!!yaraFiles.length), 'Regole YARA', yaraFiles.length ? `${yaraFiles.length} file` : `nessuna → copia file .yar in ${paths.dir('yara')}`],
       [ok(!!X.sevenZip), '7-Zip', X.sevenZip ? X.sevenZip : 'non installato (RAR/7z limitati) → brew install sevenzip'],
-      [ok(!!X.bsdtar), 'bsdtar', X.bsdtar || 'non disponibile'],
+      [ok(require('../../core/setup').status().database), 'Firme ClamAV', require('../../core/setup').status().database ? (require('../../core/setup').ownDatabase() || 'database di sistema') : 'mancanti → gauntler setup'],
+      [ok(!!X.bsdtar), 'bsdtar', X.bsdtar || 'non disponibile → gauntler setup'],
       [ok(!!feeds.length), 'Feed impronte malevole', feeds.length ? `${feeds.length} feed · ${require('../../core/analyzers/signatures').knownCount().toLocaleString('it-IT')} impronte` : 'nessuno → gauntler update'],
       [ok(!!cfg.online.virustotal), 'Chiave VirusTotal', cfg.online.virustotal ? 'configurata' : 'assente (facoltativa)'],
       [ok(!!cfg.online.malwarebazaar), 'Chiave abuse.ch', cfg.online.malwarebazaar ? 'configurata' : 'assente (facoltativa)'],

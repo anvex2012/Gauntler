@@ -18,6 +18,13 @@ contextBridge.exposeInMainWorld('gauntler', {
   cliUninstall: () => ipcRenderer.invoke('cli-uninstall'),
   // Interface size: 80%–150%, validated here so the page can never set an absurd zoom
   setZoom: (f) => { const n = Number(f); if (Number.isFinite(n)) webFrame.setZoomFactor(Math.min(1.5, Math.max(0.8, n))); },
+  setupState: () => ipcRenderer.invoke('setup-state'),
+  setupRun: () => ipcRenderer.invoke('setup-run'),
+  onSetup: (cb) => {
+    const h = (_e, st) => cb(st);
+    ipcRenderer.on('setup', h);
+    return () => ipcRenderer.removeListener('setup', h);
+  },
   onOpenPaths: (cb) => {
     const h = (_e, paths) => cb(paths);
     ipcRenderer.on('open-paths', h);
