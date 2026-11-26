@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const COMPRESSED_FAMILIES = new Set(['media', 'archive']);
 const COMPRESSED_IDS = new Set(['pdf', 'docx', 'xlsx', 'pptx', 'odf', 'jar', 'apk', 'kdbx', 'wasm', 'dmg', 'xar', 'one']);
 
@@ -27,7 +28,7 @@ module.exports = {
     else if (s.entropy > 7.5 && unknown && ctx.size > 4096) out.push({ severity: 'medium', title: 'Dati ad alta entropia senza formato noto', detail: 'Contenuto compresso o cifrato non identificabile.' });
     const encScript = s.entropy > 6.5 && ctx.type.family === 'script';
     C('Entropia coerente con il tipo di file', !encScript && !(s.entropy > 7.2 && ['text', 'markup'].includes(ctx.type.family)), s.entropy.toFixed(3));
-    if (encScript) out.push({ severity: 'high', title: 'Script con contenuto cifrato', detail: `Uno script non dovrebbe avere entropia ${s.entropy.toFixed(2)}.` });
+    if (encScript) out.push({ severity: 'high', title: 'Script con contenuto cifrato', detail: msg('Uno script non dovrebbe avere entropia {e}.', { e: s.entropy.toFixed(2) }) });
 
     const prof = s.profile;
     let hot = 0, cold = 0;
@@ -36,8 +37,8 @@ module.exports = {
       cold = prof.filter((v) => v < 6).length;
     }
     const hidden = hot >= 2 && cold >= prof.length * 0.4 && ctx.type.family !== 'executable';
-    C('Nessuna zona cifrata isolata in un file normale', !hidden, `${hot} zone`);
-    if (hidden) out.push({ severity: 'low', title: 'Blocco di dati cifrati nascosto', detail: `${hot} zone ad altissima entropia in un file altrimenti normale (possibile payload incorporato o steganografia).` });
+    C('Nessuna zona cifrata isolata in un file normale', !hidden, msg('{n} zone', { n: hot }));
+    if (hidden) out.push({ severity: 'low', title: 'Blocco di dati cifrati nascosto', detail: msg('{n} zone ad altissima entropia in un file altrimenti normale (possibile payload incorporato o steganografia).', { n: hot }) });
 
     // Data appended after the end of an image / PDF (polyglot files)
     let tailInfo = null;
@@ -51,10 +52,10 @@ module.exports = {
       const tail = b.subarray(endIdx);
       const trimmed = tail.toString('latin1').replace(/^[\s\0]+/, '');
       const hdr = trimmed.slice(0, 4);
-      const what = hdr.startsWith('MZ') ? 'un eseguibile Windows' : hdr === 'PK\x03\x04' ? 'un archivio ZIP' : hdr.startsWith('<?ph') ? 'codice PHP' : hdr.startsWith('\x7fELF') ? 'un eseguibile Linux' : /<script|<html/i.test(trimmed.slice(0, 200)) ? 'codice HTML/JavaScript' : `${tail.length} byte di dati extra`;
+      const what = hdr.startsWith('MZ') ? 'un eseguibile Windows' : hdr === 'PK\x03\x04' ? 'un archivio ZIP' : hdr.startsWith('<?ph') ? 'codice PHP' : hdr.startsWith('\x7fELF') ? 'un eseguibile Linux' : /<script|<html/i.test(trimmed.slice(0, 200)) ? 'codice HTML/JavaScript' : msg('{n} byte di dati extra', { n: tail.length });
       tailInfo = what;
-      out.push({ severity: /eseguibile|PHP|HTML/.test(what) ? 'critical' : /ZIP/.test(what) ? 'high' : 'low', title: 'Dati nascosti dopo la fine del file', detail: `Dopo la fine del ${ctx.type.label.toLowerCase()} è accodato ${what} (file poliglotta).`, loc: { offset: endIdx } });
-      if (/eseguibile|ZIP|PHP|HTML/.test(what)) ctx.embedded.push({ name: 'dati-accodati.bin', buffer: tail, origin: `accodato all'offset 0x${endIdx.toString(16)}` });
+      out.push({ severity: /eseguibile|PHP|HTML/.test(what) ? 'critical' : /ZIP/.test(what) ? 'high' : 'low', title: 'Dati nascosti dopo la fine del file', detail: msg('Dopo la fine del {label} è accodato {what} (file poliglotta).', { label: ctx.type.label.toLowerCase(), what }), loc: { offset: endIdx } });
+      if (/eseguibile|ZIP|PHP|HTML/.test(what)) ctx.embedded.push({ name: 'dati-accodati.bin', buffer: tail, origin: msg('accodato all\'offset 0x{off}', { off: endIdx.toString(16) }) });
     }
     C('Nessun dato accodato dopo la fine del formato', !tailInfo, tailInfo || '');
     C('Distribuzione dei byte non uniforme (non cifrata)', !(s.chiP > 0.01 && s.entropy > 7.9) || expectedHigh, `p=${s.chiP.toFixed(4)}`);
@@ -68,8 +69,8 @@ module.exports = {
         'Byte analizzati': ctx.totals.bytes,
         'Entropia (Shannon)': `${s.entropy.toFixed(4)} / 8`,
         'Chi-quadro': `${Math.round(s.chi)} (p = ${s.chiP < 0.0001 ? '< 0.0001' : s.chiP.toFixed(4)})`,
-        'Media aritmetica': `${s.mean.toFixed(3)} (casuale = 127.5)`,
-        'Monte Carlo π': s.pi ? `${s.pi.toFixed(6)} (errore ${(s.piErr * 100).toFixed(3)}%)` : 'n/d',
+        'Media aritmetica': msg('{v} (casuale = 127.5)', { v: s.mean.toFixed(3) }),
+        'Monte Carlo π': s.pi ? msg('{v} (errore {e}%)', { v: s.pi.toFixed(6), e: (s.piErr * 100).toFixed(3) }) : 'n/d',
         'Correlazione seriale': s.serial.toFixed(6),
         'Rapporto compressione': `${(s.compression * 100).toFixed(1)}%`,
         'Byte stampabili': `${(s.printableRatio * 100).toFixed(1)}%`,

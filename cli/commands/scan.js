@@ -11,6 +11,7 @@ const { ScanPool } = require('../../core/pool');
 const { parseSize, UsageError } = require('../args');
 const ui = require('../ui');
 const { c } = ui;
+const { t } = require('../../core/i18n');
 
 const SPEC = {
   jobs: { alias: 'j', type: 'number' },
@@ -48,56 +49,57 @@ const SPEC = {
   sort: { type: 'string', default: 'score' },
 };
 
-const HELP = `
-${c.bold('gauntler scan')} — analizza file e cartelle ${c.dim('(comando predefinito: "gauntler <percorso>" equivale a "gauntler scan <percorso>")')}
+const HELP = () => `
+${c.bold('gauntler scan')} — ${t('analizza file e cartelle')} ${c.dim(t('(comando predefinito: "gauntler <percorso>" equivale a "gauntler scan <percorso>")'))}
 
-${c.bold('Uso')}
-  gauntler scan <file|cartella|-> [altri…] [opzioni]
-  ${c.dim('"-" legge il file da stdin, es.: curl -s https://… | gauntler -')}
+${c.bold(t('Uso'))}
+  gauntler scan <file|${t('cartella')}|-> [${t('altri…')}] [${t('opzioni')}]
+  ${c.dim(t('"-" legge il file da stdin, es.: curl -s https://… | gauntler -'))}
 
 ${c.bold('Output')}
-  -f, --format <fmt>       text (predefinito) · json · sarif · csv · md · html
-  -o, --out <file>         Salva il report su file (il formato si deduce dall'estensione)
-  -q, --quiet              Una riga per file
-  -s, --summary            Solo il riepilogo finale
-  -v, --verbose            Tutto: righe, controlli, metriche, impronte
-  -l, --lines              Righe segnalate con spiegazione
-  -c, --checks             Controlli non superati (con -v: tutti)
-  -a, --all                Nessun limite al numero di problemi mostrati
-      --ids                Mostra l'id di ogni segnalazione (per sopprimerla)
-      --min-severity <s>   Mostra da questo livello in su: critical|high|medium|low|info
-      --detail             Nel JSON include testo completo e stringhe estratte
-      --sort <campo>       Ordine del riepilogo: score (predefinito) · name · size
+  -f, --format <fmt>       ${t('text (predefinito) · json · sarif · csv · md · html')}
+  -o, --out <file>         ${t('Salva il report su file (il formato si deduce dall\'estensione)')}
+  -q, --quiet              ${t('Una riga per file')}
+  -s, --summary            ${t('Solo il riepilogo finale')}
+  -v, --verbose            ${t('Tutto: righe, controlli, metriche, impronte')}
+  -l, --lines              ${t('Righe segnalate con spiegazione')}
+  -c, --checks             ${t('Controlli non superati (con -v: tutti)')}
+  -a, --all                ${t('Nessun limite al numero di problemi mostrati')}
+      --ids                ${t('Mostra l\'id di ogni segnalazione (per sopprimerla)')}
+      --min-severity <s>   ${t('Mostra da questo livello in su: critical|high|medium|low|info')}
+      --detail             ${t('Nel JSON include testo completo e stringhe estratte')}
+      --sort <campo>       ${t('Ordine del riepilogo: score (predefinito) · name · size')}
 
-${c.bold('Selezione dei file')}
-  -x, --exclude <glob>     Escludi (ripetibile), es. -x "**/node_modules/**" -x "*.log"
-  -i, --include <glob>     Analizza solo i file che corrispondono, es. -i "*.{exe,dll,js}"
-      --max-size <dim>     Salta i file più grandi (es. 50M, 2G)
-      --no-recursive       Non entrare nelle sottocartelle
-      --follow-symlinks    Segui i collegamenti simbolici
+${c.bold(t('Selezione dei file'))}
+  -x, --exclude <glob>     ${t('Escludi (ripetibile), es. -x "**/node_modules/**" -x "*.log"')}
+  -i, --include <glob>     ${t('Analizza solo i file che corrispondono, es. -i "*.{exe,dll,js}"')}
+      --max-size <dim>     ${t('Salta i file più grandi (es. 50M, 2G)')}
+      --no-recursive       ${t('Non entrare nelle sottocartelle')}
+      --follow-symlinks    ${t('Segui i collegamenti simbolici')}
 
-${c.bold('Motore')}
-  -j, --jobs <n>           Analisi in parallelo (predefinito: un thread per core)
-      --timeout <sec>      Tempo massimo per file (predefinito 900)
-      --only <criteri>     Solo questi criteri (es. --only signatures,secrets)
-      --skip <criteri>     Escludi criteri (es. --skip social,privacy)
-  -p, --password <pw>      Password per archivi protetti (ripetibile)
-      --yara <percorso>    File/cartelle di regole YARA aggiuntive
-      --online             Reputazione online (VirusTotal, MalwareBazaar): invia SOLO l'impronta SHA-256
-      --no-clamav          Non usare ClamAV
-      --no-cache           Rianalizza anche i file già visti
-      --suppress <id>      Ignora una segnalazione (ripetibile, supporta *)
-      --no-history         Non registrare nella cronologia
+${c.bold(t('Motore'))}
+  -j, --jobs <n>           ${t('Analisi in parallelo (predefinito: un thread per core)')}
+      --timeout <sec>      ${t('Tempo massimo per file (predefinito 900)')}
+      --only <criteri>     ${t('Solo questi criteri (es. --only signatures,secrets)')}
+      --skip <criteri>     ${t('Escludi criteri (es. --skip social,privacy)')}
+  -p, --password <pw>      ${t('Password per archivi protetti (ripetibile)')}
+      --yara <percorso>    ${t('File/cartelle di regole YARA aggiuntive')}
+      --online             ${t('Reputazione online (VirusTotal, MalwareBazaar): invia SOLO l\'impronta SHA-256')}
+      --no-clamav          ${t('Non usare ClamAV')}
+      --no-cache           ${t('Rianalizza anche i file già visti')}
+      --suppress <id>      ${t('Ignora una segnalazione (ripetibile, supporta *)')}
+      --no-history         ${t('Non registrare nella cronologia')}
+      --lang <codice>      ${t('Lingua per questa esecuzione (it, en, es, fr, de)')}
 
-${c.bold('Azioni ed esito')}
-  -t, --threshold <n>      Codice di uscita 1 se un file ha punteggio < n (predefinito 40)
-      --fail-on <livello>  Codice di uscita 1 se c'è almeno un problema di questo livello (es. high)
-      --quarantine         Metti in quarantena i file sotto --quarantine-below
-      --quarantine-below <n>  Soglia per la quarantena (predefinito 15 = malevoli)
+${c.bold(t('Azioni ed esito'))}
+  -t, --threshold <n>      ${t('Codice di uscita 1 se un file ha punteggio < n (predefinito 40)')}
+      --fail-on <livello>  ${t('Codice di uscita 1 se c\'è almeno un problema di questo livello (es. high)')}
+      --quarantine         ${t('Metti in quarantena i file sotto --quarantine-below')}
+      --quarantine-below <n>  ${t('Soglia per la quarantena (predefinito 15 = malevoli)')}
 
-${c.bold('Codici di uscita')}  0 ok · 1 trovati file sotto soglia/problemi · 2 uso errato · 3 errori di analisi
+${c.bold(t('Codici di uscita'))}  ${t('0 ok · 1 trovati file sotto soglia/problemi · 2 uso errato · 3 errori di analisi')}
 
-${c.bold('Esempi')}
+${c.bold(t('Esempi'))}
   gauntler ~/Downloads -q
   gauntler progetto/ -x "**/node_modules/**" -f sarif -o gauntler.sarif --fail-on high
   gauntler allegato.zip -l --ids
@@ -115,6 +117,7 @@ function buildScanOptions(a, cfg) {
     online: !!a.online,
     suppress: a.suppress,
     cache: a.cache !== undefined ? a.cache : cfg.cache,
+    lang: require('../../core/i18n').getLanguage(),
   };
 }
 
@@ -131,17 +134,17 @@ async function readStdin() {
 
 async function run(argv, { parse }) {
   const a = parse(argv, SPEC);
-  if (a.help) { console.log(HELP); return 0; }
+  if (a.help) { console.log(HELP()); return 0; }
   const cfg = config.load();
   if (a.out && a.format === 'text') a.format = formatFromPath(a.out) || 'text';
-  if (!report.FORMATS[a.format] && a.format !== 'text') throw new UsageError(`Formato sconosciuto: ${a.format}`);
+  if (!report.FORMATS[a.format] && a.format !== 'text') throw new UsageError(t('Formato sconosciuto: {f}', { f: a.format }));
   const threshold = a.threshold ?? cfg.threshold;
   const qBelow = a.quarantineBelow ?? cfg.quarantineBelow;
   const failOn = a.failOn ? a.failOn.toLowerCase() : null;
-  if (failOn && ui.SEV_ORDER[failOn] === undefined) throw new UsageError('--fail-on accetta: critical, high, medium, low');
+  if (failOn && ui.SEV_ORDER[failOn] === undefined) throw new UsageError(t('--fail-on accetta: critical, high, medium, low'));
   const valid = core.analyzers.map((x) => x.id);
-  for (const id of [...a.only, ...a.skip]) if (!valid.includes(id)) throw new UsageError(`Criterio sconosciuto "${id}". Validi: ${valid.join(', ')}`);
-  if (!a._.length) { console.log(HELP); return 2; }
+  for (const id of [...a.only, ...a.skip]) if (!valid.includes(id)) throw new UsageError(t('Criterio sconosciuto "{id}". Validi: {list}', { id, list: valid.join(', ') }));
+  if (!a._.length) { console.log(HELP()); return 2; }
 
   const text = a.format === 'text';
   const toStdout = !a.out;
@@ -152,12 +155,12 @@ async function run(argv, { parse }) {
   const files = [];
   let stdinBuf = null;
   const walkErr = [];
-  for (const t of a._) {
-    if (t === '-') { stdinBuf = await readStdin(); continue; }
-    if (!fs.existsSync(t)) { console.error(c.red('Non trovato: ' + t)); walkErr.push(t); continue; }
-    const st = fs.statSync(t);
-    if (st.isDirectory()) files.push(...core.walk(t, { recursive: a.recursive, exclude: [...cfg.exclude, ...a.exclude], include: a.include, maxSize: parseSize(a.maxSize), followSymlinks: a.followSymlinks, onError: (d) => walkErr.push(d) }));
-    else files.push(t);
+  for (const target of a._) {
+    if (target === '-') { stdinBuf = await readStdin(); continue; }
+    if (!fs.existsSync(target)) { console.error(c.red(t('Non trovato: {path}', { path: target }))); walkErr.push(target); continue; }
+    const st = fs.statSync(target);
+    if (st.isDirectory()) files.push(...core.walk(target, { recursive: a.recursive, exclude: [...cfg.exclude, ...a.exclude], include: a.include, maxSize: parseSize(a.maxSize), followSymlinks: a.followSymlinks, onError: (d) => walkErr.push(d) }));
+    else files.push(target);
   }
   const unique = [...new Set(files.map((f) => path.resolve(f)))];
 
@@ -171,12 +174,12 @@ async function run(argv, { parse }) {
       try {
         const q = quarantine.add(r.file.path, { score: r.overall.score, verdict: r.overall.verdict, reason: r.findings.find((f) => f.severity !== 'info')?.title });
         r.quarantined = q.id;
-      } catch (e) { r.quarantineError = e.message; }
+      } catch (e) { r.quarantineError = t(e.message); }
     }
     if (text && toStdout && !a.summary) {
-      if (a.quiet) prog.log(ui.oneLine(r) + (r.quarantined ? c.magenta(`  → quarantena ${r.quarantined}`) : ''));
-      else if (r.error) prog.log(c.red(`Errore su ${r.file.path}: ${r.error}`));
-      else prog.log(ui.printReport(r, printOpt) + (r.quarantined ? '\n  ' + c.magenta(`Spostato in quarantena (id ${r.quarantined}) — ripristina con: gauntler quarantine restore ${r.quarantined}`) : ''));
+      if (a.quiet) prog.log(ui.oneLine(r) + (r.quarantined ? c.magenta('  → ' + t('quarantena {id}', { id: r.quarantined })) : ''));
+      else if (r.error) prog.log(c.red(t('Errore su {path}: {msg}', { path: r.file.path, msg: t(r.error) })));
+      else prog.log(ui.printReport(r, printOpt) + (r.quarantined ? '\n  ' + c.magenta(t('Spostato in quarantena (id {id}) — ripristina con: gauntler quarantine restore {id}', { id: r.quarantined })) : ''));
     }
     prog.tick(r.file?.path ? ui.relPath(r.file.path) : '', r.file?.size || 0);
   };
@@ -186,7 +189,7 @@ async function run(argv, { parse }) {
     catch (e) { handle({ file: { path: '(stdin)' }, error: e.message }); }
   }
   const pool = new ScanPool({ size: a.jobs || cfg.jobs, timeoutMs: (a.timeout || cfg.timeout) * 1000 });
-  const onSig = () => { prog.clear(); console.error(c.yellow('\nInterrotto.')); pool.close().then(() => process.exit(130)); };
+  const onSig = () => { prog.clear(); console.error(c.yellow('\n' + t('Interrotto.'))); pool.close().then(() => process.exit(130)); };
   process.once('SIGINT', onSig);
   const t0 = Date.now();
   await Promise.all(unique.map((f) => pool.scan(f, opts).then(handle, (e) => handle({ file: { path: f, name: path.basename(f) }, error: e.message, code: e.code }))));
@@ -200,7 +203,7 @@ async function run(argv, { parse }) {
   if (!text || a.out) {
     const fmt = text ? 'json' : a.format;
     const body = report.render(fmt, results, { detail: a.detail });
-    if (a.out) { fs.writeFileSync(a.out, body); console.error(c.dim(`Report ${fmt.toUpperCase()} salvato in ${a.out}`)); }
+    if (a.out) { fs.writeFileSync(a.out, body); console.error(c.dim(t('Report {fmt} salvato in {path}', { fmt: fmt.toUpperCase(), path: a.out }))); }
     else process.stdout.write(body);
   }
 
@@ -208,20 +211,20 @@ async function run(argv, { parse }) {
   if (text && toStdout && (ok.length > 1 || a.summary || errors.length)) {
     const by = (lvl) => ok.filter((r) => r.overall.level === lvl).length;
     const el = Date.now() - t0;
-    console.log('\n' + c.bold('Riepilogo') + `  ${ok.length} file in ${ui.fmtDur(el)} · ` +
-      [c.green(by('safe') + ' sicuri'), c.cyan(by('low') + ' basso rischio'), c.yellow(by('medium') + ' sospetti'), c.red(by('high') + ' pericolosi'), c.bgRed(by('critical') + ' malevoli')].join(c.dim(' · ')) +
-      (errors.length ? c.yellow(` · ${errors.length} errori`) : '') + c.dim(` · ${ok.filter((r) => r.cached).length} dalla cache · ${ui.fmtBytes(ok.reduce((s, r) => s + r.file.size, 0))}`));
+    console.log('\n' + c.bold(t('Riepilogo')) + '  ' + t('{n} file in {d}', { n: ok.length, d: ui.fmtDur(el) }) + ' · ' +
+      [c.green(t('{n} sicuri', { n: by('safe') })), c.cyan(t('{n} basso rischio', { n: by('low') })), c.yellow(t('{n} sospetti', { n: by('medium') })), c.red(t('{n} pericolosi', { n: by('high') })), c.bgRed(t('{n} malevoli', { n: by('critical') }))].join(c.dim(' · ')) +
+      (errors.length ? c.yellow(' · ' + t('{n} errori', { n: errors.length })) : '') + c.dim(' · ' + t('{n} dalla cache', { n: ok.filter((r) => r.cached).length }) + ` · ${ui.fmtBytes(ok.reduce((s, r) => s + r.file.size, 0))}`));
     const sorter = { score: (x, y) => x.overall.score - y.overall.score, name: (x, y) => x.file.name.localeCompare(y.file.name), size: (x, y) => y.file.size - x.file.size }[a.sort] || ((x, y) => x.overall.score - y.overall.score);
     const bad = ok.filter((r) => r.overall.score < Math.max(threshold, 70)).sort(sorter);
     if (bad.length) {
-      console.log(ui.table(bad.slice(0, a.all ? Infinity : 25).map((r) => [ui.colorFor(r.overall.score)(String(r.overall.score)), r.overall.verdict, ui.relPath(r.file.path), c.dim(r.findings.find((f) => f.severity !== 'info')?.title || '')]), ['Punti', 'Verdetto', 'File', 'Problema principale']));
-      if (!a.all && bad.length > 25) console.log(c.dim(`  … altri ${bad.length - 25} (usa --all)`));
+      console.log(ui.table(bad.slice(0, a.all ? Infinity : 25).map((r) => [ui.colorFor(r.overall.score)(String(r.overall.score)), r.overall.verdict, ui.relPath(r.file.path), c.dim(r.findings.find((f) => f.severity !== 'info')?.title || '')]), [t('Punti'), t('Verdetto'), 'File', t('Problema principale')]));
+      if (!a.all && bad.length > 25) console.log(c.dim('  ' + t('… altri {n} (usa --all)', { n: bad.length - 25 })));
     }
     const quar = ok.filter((r) => r.quarantined);
-    if (quar.length) console.log(c.magenta(`\n${quar.length} file spostati in quarantena (gauntler quarantine list)`));
-    for (const e of errors) console.log(c.yellow(`  ! ${ui.relPath(e.file.path)}: ${e.error}`));
+    if (quar.length) console.log(c.magenta('\n' + t('{n} file spostati in quarantena (gauntler quarantine list)', { n: quar.length })));
+    for (const e of errors) console.log(c.yellow(`  ! ${ui.relPath(e.file.path)}: ${t(e.error)}`));
   }
-  if (text && toStdout && !a.quiet && !a.summary && !core.clamavAvailable() && ok.length) console.log(c.dim('\nSuggerimento: installa ClamAV per una scansione antivirus aggiuntiva (brew install clamav). Controlla l\'ambiente con: gauntler doctor'));
+  if (text && toStdout && !a.quiet && !a.summary && !core.clamavAvailable() && ok.length) console.log(c.dim('\n' + t('Suggerimento: installa ClamAV per una scansione antivirus aggiuntiva (brew install clamav). Controlla l\'ambiente con: gauntler doctor')));
 
   // 5) Exit code
   const below = ok.some((r) => r.overall.score < threshold);
@@ -231,4 +234,4 @@ async function run(argv, { parse }) {
   return 0;
 }
 
-module.exports = { run, HELP, SPEC, buildScanOptions, summary: 'Analizza file e cartelle (predefinito)' };
+module.exports = { run, get HELP() { return HELP(); }, SPEC, buildScanOptions, get summary() { return t('Analizza file e cartelle (predefinito)'); } };

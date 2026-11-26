@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 const { truncate } = require('../utils');
@@ -166,13 +167,13 @@ module.exports = {
     if (prov.zone) Object.assign(fields, { 'Zona (Windows)': { 0: 'Computer locale', 1: 'Intranet', 2: 'Siti attendibili', 3: 'Internet', 4: 'Siti con restrizioni' }[prov.zone.id] || prov.zone.id, 'Scaricato da': prov.zone.host || prov.zone.referrer });
     const fromNet = !!(prov.quarantine || prov.whereFrom || prov.zone?.id === '3');
     C('Provenienza: non scaricato da Internet', !fromNet, fields['Scaricato da'] || '');
-    if (fromNet) out.push({ severity: ['executable', 'script', 'shortcut'].includes(ctx.type.family) ? 'low' : 'info', title: 'File scaricato da Internet', detail: fields['Scaricato da'] ? `Origine: ${truncate(fields['Scaricato da'], 200)}` : 'Il sistema ha marcato il file come proveniente da Internet.', evidence: prov.whereFrom });
+    if (fromNet) out.push({ severity: ['executable', 'script', 'shortcut'].includes(ctx.type.family) ? 'low' : 'info', title: 'File scaricato da Internet', detail: fields['Scaricato da'] ? msg('Origine: {from}', { from: truncate(fields['Scaricato da'], 200) }) : 'Il sistema ha marcato il file come proveniente da Internet.', evidence: prov.whereFrom });
     // Content
     const exif = ['jpeg', 'png', 'heic', 'webp', 'tiff', 'mp4'].includes(ctx.type.id) || ctx.type.family === 'media' ? parseExif(ctx.buffer) : null;
     if (exif) {
       for (const [k, v] of Object.entries(exif)) if (k !== 'GPS') fields[k] = v;
       if (exif.GPS) {
-        fields['Posizione GPS'] = `${exif.GPS.lat}, ${exif.GPS.lon}${exif.GPS.alt !== undefined ? ` (alt. ${exif.GPS.alt} m)` : ''}`;
+        fields['Posizione GPS'] = exif.GPS.alt !== undefined ? msg('{lat}, {lon} (alt. {alt} m)', { lat: exif.GPS.lat, lon: exif.GPS.lon, alt: exif.GPS.alt }) : `${exif.GPS.lat}, ${exif.GPS.lon}`;
         out.push({ severity: 'high', title: 'La foto contiene la posizione GPS', detail: 'Chi riceve la foto può sapere esattamente dove è stata scattata. Rimuovi i metadati prima di condividerla.', evidence: [fields['Posizione GPS'], `https://www.openstreetmap.org/?mlat=${exif.GPS.lat}&mlon=${exif.GPS.lon}#map=16/${exif.GPS.lat}/${exif.GPS.lon}`] });
       }
       if (exif['Numero di serie'] || exif['Proprietario fotocamera']) out.push({ severity: 'low', title: 'Identificativi della fotocamera', detail: 'Numero di serie o proprietario possono collegare la foto a te.', evidence: [exif['Numero di serie'], exif['Proprietario fotocamera']].filter(Boolean) });

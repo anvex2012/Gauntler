@@ -5,6 +5,8 @@ const { contextBridge, ipcRenderer, webUtils, webFrame } = require('electron');
 // Minimal, explicit API exposed to the interface
 contextBridge.exposeInMainWorld('gauntler', {
   env: () => ipcRenderer.invoke('env'),
+  getLanguage: () => ipcRenderer.invoke('get-language'),
+  setLanguage: (code) => ipcRenderer.invoke('set-language', code),
   pick: (kind) => ipcRenderer.invoke('pick', kind),
   expand: (paths) => ipcRenderer.invoke('expand', paths),
   scanOne: (p, opts) => ipcRenderer.invoke('scan-one', p, opts),

@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const zlib = require('zlib');
 const { readZip, extract, readTar, overlappingEntries } = require('../zip');
 const { fmt } = require('../limits');
@@ -31,7 +32,7 @@ module.exports = {
     const files = []; // { name, data, origin }
     const entriesMeta = [];
     const budget = ctx.budget, L = budget.limits;
-    info['Limiti di decompressione'] = `${fmt(L.maxEntryBytes)} per file · ${fmt(L.maxTotalBytes)} in totale · rapporto ${L.maxRatio}:1 · ${L.maxFiles} file · memoria ${fmt(L.maxMemoryBytes)}`;
+    info['Limiti di decompressione'] = msg('{entry} per file · {total} in totale · rapporto {ratio}:1 · {files} file · memoria {mem}', { entry: fmt(L.maxEntryBytes), total: fmt(L.maxTotalBytes), ratio: L.maxRatio, files: L.maxFiles, mem: fmt(L.maxMemoryBytes) });
 
     if (id === 'zip' || id === 'jar' || id === 'apk') {
       const zip = readZip(ctx.buffer, { maxEntries: L.maxFiles + 1 });
@@ -44,9 +45,9 @@ module.exports = {
       info['Rapporto di compressione'] = `${(totalU / totalC).toFixed(1)}:1`;
       // Pre-flight on the declared values (before decompressing anything). The real output is enforced
       // again while inflating, because the declared sizes can lie.
-      if (zip.truncated || e.length > L.maxFiles) budget.trip('files', `L'archivio contiene più di ${L.maxFiles} voci.`, ctx.name);
-      else if (totalU > budget.remaining()) budget.trip('total', `L'archivio dichiara ${fmt(totalU)} di dati decompressi (limite ${fmt(L.maxTotalBytes)}).`, ctx.name);
-      else if (totalU > L.ratioMinBytes && totalU / totalC > L.maxRatio) budget.trip('ratio', `Rapporto di compressione dichiarato ${Math.round(totalU / totalC)}:1 (limite ${L.maxRatio}:1).`, ctx.name);
+      if (zip.truncated || e.length > L.maxFiles) budget.trip('files', msg('L\'archivio contiene più di {n} voci.', { n: L.maxFiles }), ctx.name);
+      else if (totalU > budget.remaining()) budget.trip('total', msg('L\'archivio dichiara {size} di dati decompressi (limite {max}).', { size: fmt(totalU), max: fmt(L.maxTotalBytes) }), ctx.name);
+      else if (totalU > L.ratioMinBytes && totalU / totalC > L.maxRatio) budget.trip('ratio', msg('Rapporto di compressione dichiarato {r}:1 (limite {max}:1).', { r: Math.round(totalU / totalC), max: L.maxRatio }), ctx.name);
       const overlap = overlappingEntries(ctx.buffer, e);
       C('Nessuna voce con dati sovrapposti', !overlap.length, overlap.length ? `${overlap.length}` : '');
       if (overlap.length) {
@@ -62,12 +63,12 @@ module.exports = {
       const isPkg = id === 'jar' || id === 'apk';
       const danger = e.filter((x) => DANGEROUS_EXT.has((x.name.split('.').pop() || '').toLowerCase()) && !x.name.endsWith('/'));
       C('Nessun file eseguibile/script nell\'archivio', !danger.length || isPkg, `${danger.length}`);
-      if (danger.length && !isPkg) out.push({ severity: danger.length === e.filter((x) => !x.name.endsWith('/')).length ? 'high' : 'medium', title: `File eseguibili/script nell'archivio (${danger.length})`, detail: 'Archivio che contiene programmi o script.', evidence: danger.map((x) => x.name) });
+      if (danger.length && !isPkg) out.push({ severity: danger.length === e.filter((x) => !x.name.endsWith('/')).length ? 'high' : 'medium', title: msg('File eseguibili/script nell\'archivio ({n})', { n: danger.length }), detail: 'Archivio che contiene programmi o script.', evidence: danger.map((x) => x.name) });
       if (e.filter((x) => !x.name.endsWith('/')).length === 1 && danger.length === 1) out.push({ severity: 'medium', title: 'Archivio con un singolo eseguibile', detail: 'Schema tipico degli allegati email malevoli.' });
       if (id === 'apk') {
         const dex = e.filter((x) => /\.dex$/.test(x.name)).length;
         info['File DEX'] = dex;
-        if (dex > 3) out.push({ severity: 'low', title: `Molti file DEX (${dex})`, detail: 'App molto grande o con codice caricato dinamicamente.' });
+        if (dex > 3) out.push({ severity: 'low', title: msg('Molti file DEX ({n})', { n: dex }), detail: 'App molto grande o con codice caricato dinamicamente.' });
         const signed = e.some((x) => /^META-INF\/.*\.(RSA|DSA|EC)$/i.test(x.name));
         C('APK firmato (schema v1)', signed);
         if (!signed) out.push({ severity: 'low', title: 'APK senza firma v1', detail: 'Verifica la firma con apksigner (potrebbe usare solo lo schema v2/v3).' });
@@ -81,14 +82,14 @@ module.exports = {
         const r = extract(ctx.buffer, x, passwords, { budget });
         if (r.limit) break;
         if (x.encrypted) { enc++; if (r.data) cracked++; }
-        if (r.data) files.push({ name: x.name, data: r.data, origin: x.encrypted ? `archivio (password "${r.password}")` : 'archivio' });
+        if (r.data) files.push({ name: x.name, data: r.data, origin: x.encrypted ? msg('archivio (password "{pw}")', { pw: r.password }) : 'archivio' });
         else failed.push(`${x.name}: ${r.error}`);
       }
       C('Nessun file protetto da password', !enc, `${enc}`);
       if (enc) {
-        out.push({ severity: cracked === enc ? 'medium' : 'high', title: `File protetti da password (${enc})`, detail: cracked ? `I malware usano archivi cifrati per eludere gli antivirus. ${cracked}/${enc} sbloccati con password comuni e analizzati.` : 'I malware usano archivi cifrati per eludere gli antivirus. Password sconosciuta: aggiungila nelle opzioni per analizzarli.' });
+        out.push({ severity: cracked === enc ? 'medium' : 'high', title: msg('File protetti da password ({n})', { n: enc }), detail: cracked ? msg('I malware usano archivi cifrati per eludere gli antivirus. {a}/{b} sbloccati con password comuni e analizzati.', { a: cracked, b: enc }) : 'I malware usano archivi cifrati per eludere gli antivirus. Password sconosciuta: aggiungila nelle opzioni per analizzarli.' });
       }
-      if (failed.length) out.push({ severity: 'low', title: `File non estraibili (${failed.length})`, detail: 'Alcune voci non sono state decompresse.', evidence: failed.slice(0, 20) });
+      if (failed.length) out.push({ severity: 'low', title: msg('File non estraibili ({n})', { n: failed.length }), detail: 'Alcune voci non sono state decompresse.', evidence: failed.slice(0, 20) });
     } else if (id === 'gzip') {
       const r = budget.inflate(zlib.gunzipSync, ctx.buffer, ctx.name);
       if (r.data) {
@@ -121,15 +122,15 @@ module.exports = {
     } else if (ARCHIVES.includes(id)) {
       const r = await systemExtract(ctx.buffer, id, ctx.virtual ? null : ctx.path, passwords, budget);
       info['Strumento di estrazione'] = r.tool || 'nessuno';
-      C(`Archivio ${ctx.type.label} estratto`, !!r.files.length, r.error || r.tool);
+      C(msg('Archivio {label} estratto', { label: ctx.type.label }), !!r.files.length, r.error || r.tool);
       if (!r.files.length && !r.limit) {
         const t = tools();
-        out.push({ severity: ['iso', 'vhd', 'dmg'].includes(id) ? 'medium' : 'low', title: 'Contenuto dell\'archivio non ispezionato', detail: `${r.error || 'Estrazione non riuscita.'}${!t.sevenZip ? ' Installa 7-Zip (brew install sevenzip / apt install 7zip) per aprire tutti i formati.' : ''}` });
+        out.push({ severity: ['iso', 'vhd', 'dmg'].includes(id) ? 'medium' : 'low', title: 'Contenuto dell\'archivio non ispezionato', detail: !t.sevenZip ? msg('{err} Installa 7-Zip (brew install sevenzip / apt install 7zip) per aprire tutti i formati.', { err: r.error || 'Estrazione non riuscita.' }) : (r.error || 'Estrazione non riuscita.') });
       }
-      for (const f of r.files) { files.push({ name: f.name, data: f.data, origin: `archivio ${id}` }); entriesMeta.push({ name: f.name, size: f.data.length }); }
+      for (const f of r.files) { files.push({ name: f.name, data: f.data, origin: msg('archivio {id}', { id }) }); entriesMeta.push({ name: f.name, size: f.data.length }); }
       if (['iso', 'vhd', 'img'].includes(id)) out.push({ severity: 'low', title: 'Immagine disco', detail: 'Le immagini ISO/VHD sono usate per aggirare la protezione "Mark-of-the-Web" di Windows.' });
       const exe = r.files.filter((f) => DANGEROUS_EXT.has((f.name.split('.').pop() || '').toLowerCase()));
-      if (exe.length) out.push({ severity: 'medium', title: `File eseguibili/script nell'archivio (${exe.length})`, detail: 'Archivio che contiene programmi o script.', evidence: exe.map((f) => f.name) });
+      if (exe.length) out.push({ severity: 'medium', title: msg('File eseguibili/script nell\'archivio ({n})', { n: exe.length }), detail: 'Archivio che contiene programmi o script.', evidence: exe.map((f) => f.name) });
     }
 
     // Files embedded / decoded inside the file
@@ -137,7 +138,7 @@ module.exports = {
     if (ctx.embedded.length) {
       info['File incorporati/decodificati'] = ctx.embedded.length;
       const benign = ctx.embedded.every((e) => /\.(wasm|png|jpg|gz)$/.test(e.name));
-      out.push({ severity: benign ? 'info' : 'low', title: `File nascosti dentro il file (${ctx.embedded.length})`, detail: 'Sono stati estratti file incorporati o codificati: ognuno è stato analizzato separatamente.', evidence: ctx.embedded.map((e) => `${e.name} — ${e.origin}`) });
+      out.push({ severity: benign ? 'info' : 'low', title: msg('File nascosti dentro il file ({n})', { n: ctx.embedded.length }), detail: 'Sono stati estratti file incorporati o codificati: ognuno è stato analizzato separatamente.', evidence: ctx.embedded.map((e) => msg('{name} — {origin}', { name: e.name, origin: e.origin })) });
     }
 
     // Recursive analysis of EVERY internal file
@@ -154,9 +155,9 @@ module.exports = {
         const worst = child.findings.filter((x) => ['critical', 'high'].includes(x.severity)).slice(0, 4);
         out.push({
           severity: severityOf(child),
-          title: `File interno sospetto: ${f.name}`,
-          detail: `Punteggio ${child.overall.score}/100 — ${child.overall.verdict} (${f.origin}).`,
-          evidence: worst.map((x) => `[${x.category}] ${x.title}`),
+          title: msg('File interno sospetto: {name}', { name: f.name }),
+          detail: msg('Punteggio {score}/100 — {verdict} ({origin}).', { score: child.overall.score, verdict: child.overall.verdict, origin: f.origin }),
+          evidence: worst.map((x) => msg('[{cat}] {title}', { cat: x.category, title: x.title })),
           forceScore: child.overall.score < 10 ? Math.max(1, child.overall.score) : undefined,
           child: child.file.name,
         });
@@ -164,21 +165,21 @@ module.exports = {
     }
     info['File analizzati in profondità'] = analyzed;
     // Decompression limits: checked last, so a trip caused by any nested file is reported here too
-    C('Nessuna bomba di decompressione (limiti rispettati)', !budget.tripped, budget.tripped ? budget.exceeded.detail : `${fmt(budget.totalBytes)} decompressi, ${budget.files} file`);
+    C('Nessuna bomba di decompressione (limiti rispettati)', !budget.tripped, budget.tripped ? budget.exceeded.detail : msg('{size} decompressi, {n} file', { size: fmt(budget.totalBytes), n: budget.files }));
     if (budget.tripped) {
       const ex = budget.exceeded;
       const label = { ratio: 'rapporto di compressione', total: 'dimensione decompressa totale', entry: 'dimensione di un singolo file', files: 'numero di file', memory: 'memoria', overlap: 'voci sovrapposte' }[ex.reason] || ex.reason;
       out.push({
         severity: 'critical',
-        title: `Zip bomb: limite di sicurezza superato (${label})`,
-        detail: `${ex.detail} L'estrazione e l'analisi dei contenuti sono state interrotte per proteggere il computer.${ex.where ? ` Punto di arresto: ${ex.where}.` : ''}`,
-        evidence: [`decompressi finora: ${fmt(budget.totalBytes)}`, `file estratti: ${budget.files}`],
+        title: msg('Zip bomb: limite di sicurezza superato ({label})', { label }),
+        detail: ex.where ? msg('{detail} L\'estrazione e l\'analisi dei contenuti sono state interrotte per proteggere il computer. Punto di arresto: {where}.', { detail: ex.detail, where: ex.where }) : msg('{detail} L\'estrazione e l\'analisi dei contenuti sono state interrotte per proteggere il computer.', { detail: ex.detail }),
+        evidence: [msg('decompressi finora: {size}', { size: fmt(budget.totalBytes) }), msg('file estratti: {n}', { n: budget.files })],
       });
       info['Analisi interrotta'] = ex.detail;
     }
     if (!ARCHIVES.includes(id) && !files.length && !budget.tripped) return { skipped: true, reason: 'nessun file incorporato', findings: [], checks: [] };
     const bad = ctx.children.filter((c) => c.overall.score < 70).length;
-    C('Tutti i file interni sono sicuri', !bad, `${bad} sospetti su ${analyzed}`);
+    C('Tutti i file interni sono sicuri', !bad, msg('{a} sospetti su {b}', { a: bad, b: analyzed }));
     return { findings: out, checks, info, extra: { archiveEntries: entriesMeta } };
   },
 };

@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { t } = require('./i18n');
 /**
  * Quarantine: the file is moved into ~/.gauntler/quarantine, its bytes are XOR-ed (so it can no longer
  * be executed or opened by mistake, and antivirus software doesn't detect it again) and it is made read-only.
@@ -68,7 +69,7 @@ function add(filePath, info = {}) {
   // A symbolic link is resolved: the real file is what must be neutralized
   const abs = fs.realpathSync(path.resolve(filePath));
   const st = fs.statSync(abs);
-  if (!st.isFile()) throw new Error('Non è un file: ' + abs);
+  if (!st.isFile()) throw new Error(t('Non è un file: {path}', { path: abs }));
   const data = fs.readFileSync(abs);
   const hash = sha256(data);
   const id = crypto.randomUUID();
@@ -121,24 +122,24 @@ function find(idOrPrefix) {
   if (exact) return exact;
   if (q.length < 4) throw new Error('Id troppo corto: indica almeno 4 caratteri');
   const m = all.filter((x) => x.id.toLowerCase().startsWith(q) || String(x.sha256 || '').startsWith(q));
-  if (!m.length) throw new Error('Nessun elemento in quarantena con id ' + idOrPrefix);
-  if (m.length > 1) throw new Error('Id ambiguo, corrisponde a: ' + m.map((x) => `${x.id} (${x.name})`).join(', '));
+  if (!m.length) throw new Error(t('Nessun elemento in quarantena con id {id}', { id: idOrPrefix }));
+  if (m.length > 1) throw new Error(t('Id ambiguo, corrisponde a: {list}', { list: m.map((x) => `${x.id} (${x.name})`).join(', ') }));
   return m[0];
 }
 
 function restore(idOrPrefix, { to, force } = {}) {
   const meta = find(idOrPrefix);
   const dest = path.resolve(to || meta.originalPath);
-  if (fs.existsSync(dest) && !force) throw new Error(`Esiste già un file in ${dest} (usa --force per sovrascrivere o --to per un altro percorso)`);
+  if (fs.existsSync(dest) && !force) throw new Error(t('Esiste già un file in {dest} (usa --force per sovrascrivere o --to per un altro percorso)', { dest }));
   // Claim the item: only one restore can rename the metadata away
   const claimed = path.join(Q(), `.${meta.id}.json.restoring-${process.pid}-${crypto.randomUUID()}`);
   try { fs.renameSync(metaOf(meta.id), claimed); } catch (e) {
-    if (e.code === 'ENOENT') throw new Error(`L'elemento ${meta.id} è già stato ripristinato o eliminato`);
+    if (e.code === 'ENOENT') throw new Error(t('L\'elemento {id} è già stato ripristinato o eliminato', { id: meta.id }));
     throw e;
   }
   try {
     const data = xor(fs.readFileSync(binOf(meta.id)));
-    if (meta.size != null && data.length !== meta.size) throw new Error(`Copia in quarantena danneggiata (${data.length} byte invece di ${meta.size}): ripristino annullato.`);
+    if (meta.size != null && data.length !== meta.size) throw new Error(t('Copia in quarantena danneggiata ({a} byte invece di {b}): ripristino annullato.', { a: data.length, b: meta.size }));
     if (meta.sha256 && sha256(data) !== meta.sha256) throw new Error('Copia in quarantena danneggiata (SHA-256 diverso): ripristino annullato.');
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     atomicWrite(dest, data, { mode: meta.mode || 0o644, overwrite: !!force });

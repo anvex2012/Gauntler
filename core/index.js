@@ -12,6 +12,8 @@ const { StatsAccumulator } = require('./stats');
 const ctph = require('./algorithms/ctph');
 const shellcode = require('./disasm/shellcode');
 const limits = require('./limits');
+const i18n = require('./i18n');
+const { m } = i18n;
 
 const A = {
   identity: require('./analyzers/identity'),
@@ -35,7 +37,7 @@ const A = {
 const ORDER = Object.keys(A);
 const TEXTUAL = ORDER.filter((id) => A[id].textual);
 
-const VERSION = '2.3.1';
+const VERSION = '2.4.0';
 const CHUNK = 64 * 1024 * 1024;           // analysis block (the whole file is analyzed, block by block)
 const OVERLAP = 256 * 1024;               // overlap between blocks (so no match across a boundary is missed)
 const IN_MEMORY_MAX = Math.min(require('buffer').constants.MAX_LENGTH, 1536 * 1024 * 1024);
@@ -68,6 +70,7 @@ function resolveOptions(o = {}) {
     onlineKeys: { ...(c.online || {}), ...(o.onlineKeys || {}) },
     cache: o.cache !== undefined ? o.cache : c.cache,
     limits: limits.normalize({ ...(c.limits || {}), ...(o.limits || {}) }),
+    lang: i18n.normalize(o.lang) || i18n.getLanguage(),
   };
 }
 const enabled = (opts, id) => !(opts.only && !opts.only.includes(id)) && !(opts.skip || []).includes(id);
@@ -218,8 +221,8 @@ function preExtract(ctx) {
     }
   } catch { /* */ }
   ctx.macros.forEach((m, i) => {
-    const name = (m.match(/Attribute VB_Name = "([^"]+)"/) || [])[1] || `Modulo ${i + 1}`;
-    ctx.addExtracted({ label: `Macro VBA: ${name}`, text: m, kind: 'macro' });
+    const name = (m.match(/Attribute VB_Name = "([^"]+)"/) || [])[1] || m('Modulo {n}', { n: i + 1 });
+    ctx.addExtracted({ label: m('Macro VBA: {name}', { name }), text: m, kind: 'macro' });
   });
   try {
     if (id === 'pdf') {
@@ -249,7 +252,7 @@ function decodeUnit(ctx, unit) {
     ctx.seenDecoded.add(h);
     const loc = unit.loc(blob.at);
     ctx.decodeSeq = (ctx.decodeSeq || 0) + 1;
-    const label = `Payload ${ctx.decodeSeq} · ${blob.kind} decodificato${depth > 1 ? ` (livello ${depth})` : ''}`;
+    const label = depth > 1 ? m('Payload {n} · {kind} decodificato (livello {depth})', { n: ctx.decodeSeq, kind: blob.kind, depth }) : m('Payload {n} · {kind} decodificato', { n: ctx.decodeSeq, kind: blob.kind });
     const rec = { label, from: U.fmtLoc(loc) || 'inizio', kind: blob.kind, size: blob.buffer.length, magic: blob.magic, depth, preview: blob.text ? U.truncate(blob.text, 300) : null, loc };
     if (blob.text) { ctx.decoded.push(rec); ctx.addExtracted({ label, text: blob.text, kind: 'decoded', depth }); }
     else if (blob.magic) { ctx.decoded.push(rec); ctx.addEmbedded({ name: `payload-${ctx.decoded.length}.${blob.magic}`, buffer: blob.buffer, origin: label }); }
@@ -379,7 +382,7 @@ async function analyze(ctx) {
       chain: ctx.parentChain, origin: ctx.origin || null, streamed: !!ctx.streamPath,
     },
     overall: trusted
-      ? { score: 100, verdict: 'Attendibile', level: 'safe', ...summarize(100, findings), advice: 'Il file è nella tua lista di file attendibili (allowlist): il punteggio calcolato era ' + score + '/100.', trusted: true, computedScore: score }
+      ? { score: 100, verdict: 'Attendibile', level: 'safe', ...summarize(100, findings), advice: m('Il file è nella tua lista di file attendibili (allowlist): il punteggio calcolato era {score}/100.', { score }), trusted: true, computedScore: score }
       : { score, ...verdictFor(score), ...summarize(score, findings) },
     suppressed: suppressed.length ? suppressed.map((f) => ({ id: f.id, title: f.title, severity: f.severity })) : undefined,
     categories,
@@ -417,17 +420,26 @@ async function scanFile(filePath, options = {}) {
   options = resolveOptions(options);
   const abs = path.resolve(filePath);
   const st = fs.statSync(abs);
-  if (!st.isFile()) throw new Error('Non è un file: ' + abs);
+  if (!st.isFile()) throw new Error(i18n.t('Non è un file: {path}', { path: abs }));
   // Cache: an identical file already analyzed with the same options and engine is not re-analyzed
   let sha = null;
   if (options.cache) {
     sha = await sha256File(abs);
     const hit = cache.get(sha, options);
-    if (hit) return { ...hit, file: { ...hit.file, path: abs, name: path.basename(abs) }, cached: true };
+    if (hit) return output({ ...hit, file: { ...hit.file, path: abs, name: path.basename(abs) }, cached: true }, options);
   }
   const r = await scanFileUncached(abs, st, options);
+  r.i18n = i18n.pack(r);
   if (options.cache && st.size <= 256 * 1024 * 1024) cache.put(sha || r.file.hashes.sha256, options, r);
-  return r;
+  return output(r, options);
+}
+
+/**
+ * Results are produced in Italian with a translation pack (r.i18n): translated here into options.lang,
+ * or returned as they are with options.localize === false (the desktop app translates them itself)
+ */
+function output(r, options) {
+  return options.localize === false ? r : i18n.finish(r, options.lang);
 }
 
 async function scanFileUncached(abs, st, options) {
@@ -449,7 +461,10 @@ async function scanFileUncached(abs, st, options) {
 }
 
 async function scanBuffer(buffer, name = 'buffer', options = {}) {
-  return analyzeBuffer(buffer, name, options, 0);
+  options = resolveOptions(options);
+  const r = await analyzeBuffer(buffer, name, options, 0);
+  r.i18n = i18n.pack(r);
+  return output(r, options);
 }
 
 /** Lists files in a folder; supports exclude/include (glob), maximum size, symlinks */

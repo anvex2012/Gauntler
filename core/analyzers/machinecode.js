@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 /**
  * Machine code analysis (disassembly).
  *  - Executables (PE/ELF/Mach-O; x86, x86-64, ARM64): recursive-descent disassembly from the entry
@@ -29,7 +30,7 @@ function behaviourFindings(h, image, out, C) {
 
   const apis = h.apihash ? new Set(h.apihash.evidence.map((e) => e.split(' = ')[1].split(' (')[0])) : new Set();
   C('Nessuna risoluzione delle API tramite hash', !apis.size, apis.size ? [...apis].join(', ') : '');
-  if (apis.size) out.push({ severity: apis.size >= 2 ? 'high' : 'medium', title: `API Windows cercate tramite hash (${apis.size})`, detail: 'Il codice confronta valori numerici con gli hash dei nomi di funzioni di sistema invece di importarle: tecnica tipica di shellcode e loader per nascondere cosa fanno.', evidence: ev('apihash', 10) });
+  if (apis.size) out.push({ severity: apis.size >= 2 ? 'high' : 'medium', title: msg('API Windows cercate tramite hash ({n})', { n: apis.size }), detail: 'Il codice confronta valori numerici con gli hash dei nomi di funzioni di sistema invece di importarle: tecnica tipica di shellcode e loader per nascondere cosa fanno.', evidence: ev('apihash', 10) });
 
   const manual = h.peb && h.hashloop;
   C('Nessuna scansione manuale dei moduli (PEB + hashing)', !manual);
@@ -44,26 +45,26 @@ function behaviourFindings(h, image, out, C) {
 
   C('Nessuno stub di syscall diretta (Hell\'s Gate)', !h.hellsgate);
   if (h.hellsgate) out.push({ severity: 'high', title: 'Chiamate di sistema dirette (Hell\'s Gate / SysWhispers)', detail: 'Stub "mov r10, rcx; mov eax, N; syscall" fuori da ntdll: serve a scavalcare i controlli di antivirus ed EDR.', evidence: ev('hellsgate', 4) });
-  else if (h.syscall && pe && user) out.push({ severity: 'medium', title: `Chiamate di sistema dirette (${h.syscall.count})`, detail: 'Un programma Windows normale passa da ntdll: le syscall dirette sono usate per evitare il monitoraggio.', evidence: ev('syscall', 4) });
-  else if (h.syscall) C(`Chiamate di sistema dirette: ${h.syscall.count}`, true, 'normale per binari statici Linux/macOS');
+  else if (h.syscall && pe && user) out.push({ severity: 'medium', title: msg('Chiamate di sistema dirette ({n})', { n: h.syscall.count }), detail: 'Un programma Windows normale passa da ntdll: le syscall dirette sono usate per evitare il monitoraggio.', evidence: ev('syscall', 4) });
+  else if (h.syscall) C(msg('Chiamate di sistema dirette: {n}', { n: h.syscall.count }), true, 'normale per binari statici Linux/macOS');
 
   C('Nessun ciclo di auto-decifratura', !h.decoder);
   const strongContext = h.getpc || h.peb || h.apihash || h.hellsgate || h.hashloop;
-  if (h.decoder) out.push({ severity: strongContext ? 'medium' : 'info', title: `Cicli che modificano dati in memoria (${h.decoder.count})`, detail: 'Cicli brevi che applicano XOR/ADD/rotazioni a un buffer: possono decifrare un payload nascosto (ma anche essere codice di crittografia o compressione legittimo).', evidence: ev('decoder', 4) });
+  if (h.decoder) out.push({ severity: strongContext ? 'medium' : 'info', title: msg('Cicli che modificano dati in memoria ({n})', { n: h.decoder.count }), detail: 'Cicli brevi che applicano XOR/ADD/rotazioni a un buffer: possono decifrare un payload nascosto (ma anche essere codice di crittografia o compressione legittimo).', evidence: ev('decoder', 4) });
 
   const strs = h.stackstr ? h.stackstr.evidence : [];
   const badStrs = strs.filter((s) => SUSPICIOUS_STR.test(s));
   C('Nessuna stringa sospetta costruita sullo stack', !badStrs.length, strs.slice(0, 8).join(' · '));
   if (badStrs.length) out.push({ severity: 'medium', title: 'Stringhe nascoste costruite sullo stack', detail: 'Testi composti carattere per carattere nel codice per non comparire tra le stringhe del file.', evidence: badStrs.slice(0, 12) });
-  else if (strs.length) out.push({ severity: 'info', title: `Stringhe costruite sullo stack (${strs.length})`, detail: 'Testi composti nel codice a runtime.', evidence: strs.slice(0, 12) });
+  else if (strs.length) out.push({ severity: 'info', title: msg('Stringhe costruite sullo stack ({n})', { n: strs.length }), detail: 'Testi composti nel codice a runtime.', evidence: strs.slice(0, 12) });
 
   C('Nessuna tecnica anti-debug nel codice', !h.antidebug);
   if (h.antidebug) out.push({ severity: 'medium', title: 'Tecniche anti-debug nel codice', detail: 'Istruzioni che rilevano o ostacolano un debugger (usate dai malware per sfuggire all\'analisi).', evidence: ev('antidebug', 6) });
   C('Nessuna tecnica anti-macchina virtuale', !h.antivm);
   if (h.antivm) out.push({ severity: 'medium', title: 'Rilevamento di macchine virtuali / sandbox', detail: 'Istruzioni che verificano se il programma gira in una VM (per non mostrarsi agli analisti).', evidence: ev('antivm', 6) });
-  if (h.rdtsc && h.rdtsc.count >= 4) out.push({ severity: 'low', title: `Misurazioni del tempo ad alta precisione (${h.rdtsc.count})`, detail: 'Usate per accorgersi del rallentamento causato da debugger ed emulatori (ma anche da benchmark e generatori casuali).', evidence: h.rdtsc.at.slice(0, 4).map((a) => `@ ${hex(a)}`) });
+  if (h.rdtsc && h.rdtsc.count >= 4) out.push({ severity: 'low', title: msg('Misurazioni del tempo ad alta precisione ({n})', { n: h.rdtsc.count }), detail: 'Usate per accorgersi del rallentamento causato da debugger ed emulatori (ma anche da benchmark e generatori casuali).', evidence: h.rdtsc.at.slice(0, 4).map((a) => `@ ${hex(a)}`) });
   if (h.privileged && user && h.privileged.count >= 2) out.push({ severity: 'info', title: 'Istruzioni privilegiate in un programma utente', detail: 'Istruzioni riservate al kernel (in/out/cli/hlt/wrmsr) raggiungibili nel codice.', evidence: ev('privileged', 5) });
-  if (h.nopsled && h.nopsled.max >= 64) out.push({ severity: 'low', title: `Sequenza di NOP (${h.nopsled.max} byte)`, detail: 'Lunga "slitta" di istruzioni nulle, tipica degli exploit.', evidence: ev('nopsled', 2) });
+  if (h.nopsled && h.nopsled.max >= 64) out.push({ severity: 'low', title: msg('Sequenza di NOP ({n} byte)', { n: h.nopsled.max }), detail: 'Lunga "slitta" di istruzioni nulle, tipica degli exploit.', evidence: ev('nopsled', 2) });
   if (h.crypto) out.push({ severity: 'info', title: 'Istruzioni crittografiche hardware', detail: 'Il codice usa AES-NI/SHA/CRC32: cifratura o hashing (normale in molti programmi, presente anche nei ransomware).', evidence: [...new Set(h.crypto.evidence)].slice(0, 6) });
 }
 
@@ -108,24 +109,24 @@ module.exports = {
           const cyc = fns.map((f) => f.cyclomatic);
           const loops = fns.reduce((a, f) => a + f.loops.length, 0);
           Object.assign(info, {
-            'Istruzioni disassemblate': cfg.insns.size.toLocaleString('it-IT') + (cfg.truncated ? ' (limite raggiunto)' : ''),
-            Funzioni: cfg.functions.size.toLocaleString('it-IT'),
-            'Blocchi di base': cfg.blocks.size.toLocaleString('it-IT'),
-            'Copertura del codice': `${Math.round(cov.ratio * 100)}%` + (cov.padding ? ` (escluso padding: ${Math.round(cov.padding / 1024)} KB)` : ''),
+            'Istruzioni disassemblate': cfg.truncated ? msg('{n} (limite raggiunto)', { n: cfg.insns.size }) : cfg.insns.size,
+            Funzioni: cfg.functions.size,
+            'Blocchi di base': cfg.blocks.size,
+            'Copertura del codice': cov.padding ? msg('{p}% (escluso padding: {n} KB)', { p: Math.round(cov.ratio * 100), n: Math.round(cov.padding / 1024) }) : `${Math.round(cov.ratio * 100)}%`,
             'Complessità ciclomatica (media / max)': cyc.length ? `${(cyc.reduce((a, b) => a + b, 0) / cyc.length).toFixed(1)} / ${Math.max(...cyc)}` : '-',
             Cicli: loops,
             'Tempo di disassemblaggio': `${Date.now() - t0} ms`,
           });
-          C('Codice disassemblabile dal punto di avvio', cfg.insns.size > 0, `${cfg.insns.size} istruzioni`);
+          C('Codice disassemblabile dal punto di avvio', cfg.insns.size > 0, msg('{n} istruzioni', { n: cfg.insns.size }));
           // Low coverage alone is normal (code reached only through pointers the static analysis cannot
           // resolve). It indicates a packer only when the unreached bytes do not look like code at all:
           // compressed/encrypted data has an entropy close to 8 bits/byte, compiled code about 6–6.7.
           if (cov.unreachedEntropy) info['Entropia del codice non raggiunto'] = `${cov.unreachedEntropy.toFixed(2)} bit/byte`;
           const lowCoverage = codeBytes > 64 * 1024 && cov.ratio < 0.05 && !image.dotnet && !cfg.truncated;
           const packedLike = lowCoverage && cov.unreachedEntropy >= PACKED_ENTROPY;
-          C('Codice raggiungibile o con struttura normale (nessun codice cifrato non raggiungibile)', !packedLike, `${info['Copertura del codice']}${cov.unreachedEntropy ? `, entropia ${cov.unreachedEntropy.toFixed(2)}` : ''}`);
-          if (packedLike) out.push({ severity: 'medium', title: 'Codice quasi tutto irraggiungibile', detail: `Dal punto di avvio si raggiunge solo il ${info['Copertura del codice']} del codice e il resto ha entropia ${cov.unreachedEntropy.toFixed(2)} bit/byte (dati compressi o cifrati, non istruzioni): tipico dei programmi impacchettati che si decomprimono a runtime.` });
-          else if (lowCoverage) out.push({ severity: 'info', title: 'Codice raggiunto soprattutto tramite puntatori', detail: `Copertura statica ${info['Copertura del codice']}: gran parte delle funzioni è chiamata tramite puntatori (callback, tabelle virtuali, metadati del linguaggio). Il codice non raggiunto ha la struttura di normale codice compilato.` });
+          C('Codice raggiungibile o con struttura normale (nessun codice cifrato non raggiungibile)', !packedLike, cov.unreachedEntropy ? msg('{cov}, entropia {e}', { cov: info['Copertura del codice'], e: cov.unreachedEntropy.toFixed(2) }) : info['Copertura del codice']);
+          if (packedLike) out.push({ severity: 'medium', title: 'Codice quasi tutto irraggiungibile', detail: msg('Dal punto di avvio si raggiunge solo il {cov} del codice e il resto ha entropia {e} bit/byte (dati compressi o cifrati, non istruzioni): tipico dei programmi impacchettati che si decomprimono a runtime.', { cov: info['Copertura del codice'], e: cov.unreachedEntropy.toFixed(2) }) });
+          else if (lowCoverage) out.push({ severity: 'info', title: 'Codice raggiunto soprattutto tramite puntatori', detail: msg('Copertura statica {cov}: gran parte delle funzioni è chiamata tramite puntatori (callback, tabelle virtuali, metadati del linguaggio). Il codice non raggiunto ha la struttura di normale codice compilato.', { cov: info['Copertura del codice'] }) });
           if (image.entry != null && !cfg.insns.has(image.entry) && !cfg.truncated) {
             C('Punto di avvio dentro una sezione di codice', false, hex(image.entry));
             if (!image.dotnet) out.push({ severity: 'medium', title: 'Punto di avvio fuori dalle sezioni di codice', detail: 'L\'esecuzione inizia in una zona non eseguibile o non presente nel file (programma impacchettato o manipolato).' });
@@ -144,13 +145,16 @@ module.exports = {
     /* ---------- 2. Shellcode anywhere outside the executable code ---------- */
     const inExec = (o) => execRanges.some(([a, b]) => o >= a && o < b);
     const sc = shellcode.find(buf).filter((s) => !inExec(s.start));
-    C('Nessuno shellcode nei dati', !sc.length, sc.length ? `${sc.length} blocchi` : '');
+    C('Nessuno shellcode nei dati', !sc.length, sc.length ? msg('{n} blocchi', { n: sc.length }) : '');
     for (const s of sc.slice(0, 20)) {
-      const where = isExe ? 'nei dati del programma (fuori dalle sezioni di codice)' : `dentro un file ${ctx.type.label}`;
+      const where = isExe ? 'nei dati del programma (fuori dalle sezioni di codice)' : msg('dentro un file {label}', { label: ctx.type.label });
+      const v = { bits: s.bits, at: hex(s.start), where, conf: s.confidence === 'high' ? 'alta' : 'media', anchor: s.anchor, list: s.stackStrings };
       out.push({
         severity: !isExe && s.confidence === 'high' ? 'critical' : 'high',
-        title: `Shellcode ${s.bits}-bit ${where.startsWith('nei') ? 'nascosto nei dati' : 'nel file'} @ ${hex(s.start)}`,
-        detail: `Codice macchina eseguibile ${where} (confidenza ${s.confidence === 'high' ? 'alta' : 'media'}; punto di riconoscimento: ${s.anchor}). Lo shellcode è il cuore degli exploit: viene eseguito sfruttando una vulnerabilità.${s.stackStrings.length ? ' Stringhe composte: ' + s.stackStrings.join(', ') : ''}`,
+        title: isExe ? msg('Shellcode {bits}-bit nascosto nei dati @ {at}', v) : msg('Shellcode {bits}-bit nel file @ {at}', v),
+        detail: s.stackStrings.length
+          ? msg('Codice macchina eseguibile {where} (confidenza {conf}; punto di riconoscimento: {anchor}). Lo shellcode è il cuore degli exploit: viene eseguito sfruttando una vulnerabilità. Stringhe composte: {list}', v)
+          : msg('Codice macchina eseguibile {where} (confidenza {conf}; punto di riconoscimento: {anchor}). Lo shellcode è il cuore degli exploit: viene eseguito sfruttando una vulnerabilità.', v),
         evidence: s.evidence.slice(0, 8),
         loc: { offset: s.start },
       });
@@ -161,27 +165,28 @@ module.exports = {
     const clusters = apihash.scanBuffer(buf).filter((c) => !(mc.behaviours && mc.behaviours.apihash) || !inExec(c.start));
     C('Nessuna tabella di hash di API Windows', !clusters.length);
     for (const c of clusters.slice(0, 5)) {
-      out.push({ severity: 'high', title: `Tabella di hash di API Windows @ ${hex(c.start)}`, detail: `Valori che corrispondono agli hash (${c.algs.join(', ')}) di ${c.apis.length} funzioni di sistema: un loader li usa per trovare le API senza nominarle.`, evidence: c.apis.slice(0, 12), loc: { offset: c.start } });
+      out.push({ severity: 'high', title: msg('Tabella di hash di API Windows @ {at}', { at: hex(c.start) }), detail: msg('Valori che corrispondono agli hash ({algs}) di {n} funzioni di sistema: un loader li usa per trovare le API senza nominarle.', { algs: c.algs.join(', '), n: c.apis.length }), evidence: c.apis.slice(0, 12), loc: { offset: c.start } });
     }
 
     /* ---------- 4. Content hidden with XOR / ADD keys ---------- */
     const big = buf.length > 16 * 1024 * 1024;
     const xs = xorsearch.search(buf, { maxKey: big ? 8 : 32, ops: big ? ['xor'] : ['xor', 'add'] });
-    C('Nessun contenuto nascosto con chiave XOR/ADD', !xs.length, xs.length ? `${xs.length} trovati` : '');
+    C('Nessun contenuto nascosto con chiave XOR/ADD', !xs.length, xs.length ? msg('{n} trovati', { n: xs.length }) : '');
     const seenPayload = new Set();
     for (const x of xs.slice(0, 20)) {
       const exe = x.id.startsWith('pe') || x.id === 'elf';
       const keyTxt = x.key.length <= 16 ? `0x${x.keyHex}` : `${x.key.length} byte`;
+      const v = { op: x.op.toUpperCase(), key: keyTxt, what: x.what, plain: x.plaintext, at: hex(x.offset), len: x.key.length, sample: x.sample };
       out.push({
         severity: exe ? 'critical' : /kernel32|ntdll|getproc|virtualalloc|powershell|cmdexe|binsh/.test(x.id) ? 'high' : 'medium',
-        title: exe ? `Eseguibile nascosto cifrato con ${x.op.toUpperCase()} (chiave ${keyTxt})` : `Testo nascosto con ${x.op.toUpperCase()}: ${x.what}`,
-        detail: `"${x.plaintext}" trovato all'offset ${hex(x.offset)} dopo aver recuperato la chiave ${x.op.toUpperCase()} di ${x.key.length} byte (${keyTxt}) con crittoanalisi differenziale. Anteprima: ${x.sample}`,
+        title: exe ? msg('Eseguibile nascosto cifrato con {op} (chiave {key})', v) : msg('Testo nascosto con {op}: {what}', v),
+        detail: msg('"{plain}" trovato all\'offset {at} dopo aver recuperato la chiave {op} di {len} byte ({key}) con crittoanalisi differenziale. Anteprima: {sample}', v),
         evidence: [x.sample.slice(0, 120)],
         loc: { offset: x.offset },
       });
       if (exe && !seenPayload.has(x.payloadStart)) {
         seenPayload.add(x.payloadStart);
-        ctx.addEmbedded({ name: `decifrato-${x.op}-${x.keyHex.slice(0, 16)}.${x.id === 'elf' ? 'elf' : 'exe'}`, buffer: xorsearch.extractPayload(buf, x), origin: `${x.op.toUpperCase()} con chiave ${keyTxt} @ ${hex(x.payloadStart)}` });
+        ctx.addEmbedded({ name: `decifrato-${x.op}-${x.keyHex.slice(0, 16)}.${x.id === 'elf' ? 'elf' : 'exe'}`, buffer: xorsearch.extractPayload(buf, x), origin: msg('{op} con chiave {key} @ {at}', { ...v, at: hex(x.payloadStart) }) });
       }
     }
     if (xs.length) mc.xor = xs.slice(0, 20).map((x) => ({ op: x.op, key: x.keyHex, plaintext: x.plaintext, offset: x.offset, sample: x.sample }));

@@ -5,10 +5,14 @@ const path = require('path');
 const fs = require('fs');
 const { walk, analyzers, clamavAvailable, VERSION } = require('../core');
 const cliInstall = require('../cli/install');
+const i18n = require('../core/i18n');
+const config = require('../core/config');
+const { t } = i18n;
 
 // Same name everywhere: menu bar, About panel, Dock, notifications (also when running from sources)
 app.setName('Gauntler');
-app.setAboutPanelOptions({ applicationName: 'Gauntler', applicationVersion: VERSION, copyright: 'Analisi di sicurezza dei file — tutta locale' });
+const aboutPanel = () => app.setAboutPanelOptions({ applicationName: 'Gauntler', applicationVersion: VERSION, copyright: t('Analisi di sicurezza dei file — tutta locale') });
+aboutPanel();
 
 const DEV_URL = process.env.VITE_DEV_SERVER_URL;
 const ICON = path.join(__dirname, '..', 'build', 'icon.png');
@@ -77,11 +81,22 @@ function createWindow() {
   else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 }
 
-ipcMain.handle('env', () => ({ version: VERSION, clamav: clamavAvailable(), sevenZip: !!require('../core/extract').tools().sevenZip, analyzers, platform: process.platform }));
+ipcMain.handle('env', () => ({ version: VERSION, clamav: clamavAvailable(), sevenZip: !!require('../core/extract').tools().sevenZip, analyzers: i18n.localize(analyzers), platform: process.platform }));
+
+// Language (shared with the terminal, saved in ~/.gauntler/config.json): null until chosen on first use
+ipcMain.handle('get-language', () => ({ lang: i18n.savedLanguage(), current: i18n.getLanguage(), system: i18n.normalize(app.getLocale()) || 'en', languages: i18n.LANGUAGES }));
+ipcMain.handle('set-language', (_e, code) => {
+  const c = i18n.normalize(code);
+  if (!c) return false;
+  try { config.set('language', c); } catch { /* not writable: still used for this session */ }
+  i18n.setLanguage(c);
+  aboutPanel();
+  return c;
+});
 
 ipcMain.handle('pick', async (_e, kind) => {
   const props = kind === 'folder' ? ['openDirectory', 'multiSelections'] : ['openFile', 'multiSelections'];
-  const r = await dialog.showOpenDialog(win, { properties: props, title: kind === 'folder' ? 'Scegli una cartella da analizzare' : 'Scegli i file da analizzare' });
+  const r = await dialog.showOpenDialog(win, { properties: props, title: kind === 'folder' ? t('Scegli una cartella da analizzare') : t('Scegli i file da analizzare') });
   return r.canceled ? [] : r.filePaths;
 });
 
@@ -91,16 +106,17 @@ ipcMain.handle('expand', (_e, paths) => expand(Array.isArray(paths) ? paths : []
 ipcMain.handle('scan-one', async (_e, filePath, opts = {}) => {
   const passwords = Array.isArray(opts.passwords) ? opts.passwords.filter((p) => typeof p === 'string').slice(0, 500) : [];
   try {
-    const result = await scanInWorker(filePath, { detail: true, passwords });
+    // Returned untranslated with its translation pack: the interface translates it (again, when the language changes)
+    const result = await scanInWorker(filePath, { detail: true, passwords, localize: false });
     history.record(result);
     return { ok: true, result };
   }
-  catch (e) { return { ok: false, error: e.message, path: filePath }; }
+  catch (e) { return { ok: false, error: t(e.message), path: filePath }; }
 });
 
 ipcMain.handle('save-report', async (_e, { name, result, format }) => {
   const ext = { html: 'html', json: 'json', sarif: 'sarif', csv: 'csv', md: 'md' }[format] || 'json';
-  const data = report.render(format === 'md' ? 'md' : format, [result], { detail: false });
+  const data = report.render(format === 'md' ? 'md' : format, [i18n.finish(result, i18n.getLanguage())], { detail: false });
   const r = await dialog.showSaveDialog(win, { defaultPath: `gauntler-${name}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
   if (r.canceled || !r.filePath) return null;
   fs.writeFileSync(r.filePath, data);
@@ -108,17 +124,17 @@ ipcMain.handle('save-report', async (_e, { name, result, format }) => {
 });
 
 ipcMain.handle('sanitize', async (_e, filePath) => {
-  if (typeof filePath !== 'string' || !fs.existsSync(filePath)) return { ok: false, error: 'file non trovato' };
+  if (typeof filePath !== 'string' || !fs.existsSync(filePath)) return { ok: false, error: t('file non trovato') };
   try {
     const { sanitizeFile } = require('../core/sanitize');
     const r = await sanitizeFile(filePath, { dryRun: true });
     if (r.status === 'blocked') return { ok: false, reason: r.reason + (r.blocking && r.blocking.length ? ': ' + r.blocking.join('; ') : '') };
     const d = await dialog.showSaveDialog(win, { defaultPath: path.join(path.dirname(filePath), r.outName) });
     if (d.canceled || !d.filePath) return null;
-    if (path.resolve(d.filePath) === path.resolve(filePath)) return { ok: false, error: 'scegli un nome diverso dall\'originale' };
+    if (path.resolve(d.filePath) === path.resolve(filePath)) return { ok: false, error: t('scegli un nome diverso dall\'originale') };
     fs.writeFileSync(d.filePath, r.output, { mode: 0o644 });
     return { ok: true, outPath: d.filePath, status: r.status, actions: r.actions, after: r.after };
-  } catch (e) { return { ok: false, error: e.message }; }
+  } catch (e) { return { ok: false, error: t(e.message) }; }
 });
 
 // Appearance: the theme is applied natively (window, scrollbars, menus, prefers-color-scheme in the page)
@@ -136,7 +152,7 @@ let setupState = { running: false, text: '', result: null };
 const sendSetup = () => { if (win && !win.isDestroyed()) win.webContents.send('setup', setupState); };
 async function runSetup() {
   if (setupState.running) return setupState;
-  setupState = { running: true, text: 'Installazione dei componenti (ClamAV, bsdtar)…', result: null };
+  setupState = { running: true, text: t('Installazione dei componenti (ClamAV, bsdtar)…'), result: null };
   sendSetup();
   let result;
   try {
@@ -159,7 +175,7 @@ app.whenReady().then(() => {
   // First launch: also make the app usable from the terminal ("gauntler"), without overwriting an existing command
   setTimeout(() => {
     const r = cliInstall.autoInstall();
-    if (r?.error) console.warn('gauntler: comando da terminale non installato:', r.error);
+    if (r?.error) console.warn('gauntler: ' + t('comando da terminale non installato:'), r.error);
     // Then the components: everything missing on first launch, otherwise only a quiet signature refresh
     if (setup.needsAuto()) runSetup();
     else setup.refreshDatabase().catch(() => {});

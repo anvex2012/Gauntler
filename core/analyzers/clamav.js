@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const { execFile, execFileSync } = require('child_process');
 const fs = require('fs');
 
@@ -52,16 +53,16 @@ module.exports = {
           // Older ClamAV version: retry with the basic options
           return execFile(bin, ['--no-summary', '--stdout', '--infected', '--max-filesize=4000M', '--max-scansize=4000M', '--max-recursion=64', ...(ownDatabase() ? [`--database=${ownDatabase()}`] : []), ctx.path], { timeout: 30 * 60 * 1000, maxBuffer: 64 * 1024 * 1024 }, (e2, out2) => {
             const l2 = String(out2 || '').split('\n').filter((l) => /FOUND$/.test(l));
-            resolve({ findings: l2.map((l) => ({ severity: 'critical', title: `Virus rilevato: ${l.replace(/^.*?:\s*/, '').replace(/\s*FOUND$/, '')}`, detail: 'Rilevato dal database firme di ClamAV.', forceScore: 1 })), info: { Motore: 'clamscan (opzioni base)' } });
+            resolve({ findings: l2.map((l) => ({ severity: 'critical', title: msg('Virus rilevato: {sig}', { sig: l.replace(/^.*?:\s*/, '').replace(/\s*FOUND$/, '') }), detail: 'Rilevato dal database firme di ClamAV.', forceScore: 1 })), info: { Motore: 'clamscan (opzioni base)' } });
           });
         }
-        if (err && err.code !== 1 && !lines.length) return resolve({ skipped: true, reason: 'Errore ClamAV: ' + String(err.message).slice(0, 120), findings: [] });
+        if (err && err.code !== 1 && !lines.length) return resolve({ skipped: true, reason: msg('Errore ClamAV: {msg}', { msg: String(err.message).slice(0, 120) }), findings: [] });
         const findings = lines.map(l => {
           const sig = l.replace(/^.*?:\s*/, '').replace(/\s*FOUND$/, '');
           const pua = /^(PUA|Heuristics)\./.test(sig);
-          return { severity: pua ? 'medium' : 'critical', title: pua ? `Software potenzialmente indesiderato: ${sig}` : `Virus rilevato: ${sig}`, detail: 'Rilevato dal database firme di ClamAV.', forceScore: pua ? undefined : (/Eicar/i.test(sig) ? 5 : 1) };
+          return { severity: pua ? 'medium' : 'critical', title: pua ? msg('Software potenzialmente indesiderato: {sig}', { sig }) : msg('Virus rilevato: {sig}', { sig }), detail: 'Rilevato dal database firme di ClamAV.', forceScore: pua ? undefined : (/Eicar/i.test(sig) ? 5 : 1) };
         });
-        resolve({ findings, checks: [{ name: 'Scansione antivirus ClamAV (limiti rimossi)', ok: !findings.length, note: findings.length ? `${findings.length} rilevamenti` : 'pulito' }], info: { Motore: bin.split(/[\\/]/).pop(), Esito: findings.length ? 'INFETTO' : 'pulito' } });
+        resolve({ findings, checks: [{ name: 'Scansione antivirus ClamAV (limiti rimossi)', ok: !findings.length, note: findings.length ? msg('{n} rilevamenti', { n: findings.length }) : 'pulito' }], info: { Motore: bin.split(/[\\/]/).pop(), Esito: findings.length ? 'INFETTO' : 'pulito' } });
       });
     });
   },

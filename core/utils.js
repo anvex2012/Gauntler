@@ -136,11 +136,11 @@ function printableAround(text, pos, max = 300) {
 
 function fmtLoc(loc) {
   if (!loc) return '';
-  const parts = [];
-  if (loc.source) parts.push(loc.source);
-  if (loc.line != null) parts.push(`riga ${loc.line}`);
-  else if (loc.offset != null) parts.push(`offset 0x${loc.offset.toString(16)}`);
-  return parts.join(', ');
+  const { m } = require('./i18n');
+  const off = loc.offset != null ? loc.offset.toString(16) : null;
+  if (loc.line != null) return loc.source ? m('{source}, riga {n}', { source: loc.source, n: loc.line }) : m('riga {n}', { n: loc.line });
+  if (off != null) return loc.source ? m('{source}, offset 0x{off}', { source: loc.source, off }) : `offset 0x${off}`;
+  return loc.source || '';
 }
 
 /** Documentation / type definitions / licenses: they describe, they don't execute */

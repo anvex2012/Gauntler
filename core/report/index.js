@@ -6,12 +6,15 @@
  */
 const path = require('path');
 const { VERSION } = require('../index');
+const i18n = require('../i18n');
+const { t } = i18n;
 
-const SEV_LABEL = { critical: 'Critico', high: 'Alto', medium: 'Medio', low: 'Basso', info: 'Info' };
+const SEV_IT = { critical: 'Critico', high: 'Alto', medium: 'Medio', low: 'Basso', info: 'Info' };
+const SEV_LABEL = new Proxy(SEV_IT, { get: (o, k) => (typeof k === 'string' && o[k] ? t(o[k]) : o[k]) });
 const SEV_HEX = { critical: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#0d9488', info: '#6b7280' };
 const LVL_HEX = { safe: '#16a34a', low: '#0d9488', medium: '#d97706', high: '#ea580c', critical: '#dc2626' };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmtLoc = (l) => (!l ? '' : [l.source, l.line != null ? `riga ${l.line}` : l.offset != null ? `offset 0x${l.offset.toString(16)}` : ''].filter(Boolean).join(', '));
+const fmtLoc = (l) => (!l ? '' : [l.source, l.line != null ? t('riga {n}', { n: l.line }) : l.offset != null ? `offset 0x${l.offset.toString(16)}` : ''].filter(Boolean).join(', '));
 
 /** Removes the heavy fields (full text and strings) if not requested */
 function slim(r, keepDetail) {
@@ -64,9 +67,9 @@ function sarif(results, { cwd = process.cwd() } = {}) {
 
 function csv(results) {
   const q = (v) => { const s = String(v ?? ''); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  const rows = [['file', 'sha256', 'punteggio', 'verdetto', 'criterio', 'gravita', 'id', 'problema', 'posizione', 'dettaglio', 'evidenze'].join(',')];
+  const rows = [['file', 'sha256', t('punteggio'), t('verdetto'), t('criterio'), t('gravita'), 'id', t('problema'), t('posizione'), t('dettaglio'), t('evidenze')].join(',')];
   for (const r of results) {
-    if (r.error) { rows.push([r.file.path, '', '', 'ERRORE', '', '', '', r.error, '', '', ''].map(q).join(',')); continue; }
+    if (r.error) { rows.push([r.file.path, '', '', t('ERRORE'), '', '', '', r.error, '', '', ''].map(q).join(',')); continue; }
     const base = [r.file.path || r.file.name, r.file.hashes.sha256, r.overall.score, r.overall.verdict];
     const fs_ = r.findings.filter((f) => f.severity !== 'info');
     if (!fs_.length) rows.push([...base, '', '', '', '', '', '', ''].map(q).join(','));
@@ -77,25 +80,25 @@ function csv(results) {
 
 function md(results) {
   const ok = results.filter((r) => !r.error);
-  const L = [`# Report Gauntler ${VERSION}`, '', `_${new Date().toLocaleString('it-IT')} · ${ok.length} file analizzati_`, ''];
+  const L = [t('# Report Gauntler {v}', { v: VERSION }), '', `_${new Date().toLocaleString(i18n.locale())} · ${t('{n} file analizzati', { n: ok.length })}_`, ''];
   if (ok.length > 1) {
-    L.push('| Punteggio | Verdetto | File | Problema principale |', '|---:|---|---|---|');
+    L.push(`| ${t('Punteggio')} | ${t('Verdetto')} | File | ${t('Problema principale')} |`, '|---:|---|---|---|');
     for (const r of [...ok].sort((a, b) => a.overall.score - b.overall.score)) L.push(`| **${r.overall.score}** | ${r.overall.verdict} | \`${r.file.path || r.file.name}\` | ${r.findings.find((f) => f.severity !== 'info')?.title || '—'} |`);
     L.push('');
   }
   for (const r of ok) {
     L.push(`## ${r.file.name} — ${r.overall.score}/100 ${r.overall.verdict}`, '', `${r.file.type.label} · ${r.file.sizeHuman} · SHA-256 \`${r.file.hashes.sha256}\``, '', `> ${r.overall.advice}`, '');
-    L.push('| Criterio | Punteggio |', '|---|---:|');
+    L.push(`| ${t('Criterio')} | ${t('Punteggio')} |`, '|---|---:|');
     for (const c of r.categories.filter((c) => c.applicable)) L.push(`| ${c.name} | ${c.score} |`);
     L.push('');
     const fs_ = r.findings.filter((f) => f.severity !== 'info');
     if (fs_.length) {
-      L.push('### Problemi', '');
+      L.push(`### ${t('Problemi')}`, '');
       for (const f of fs_) L.push(`- **[${SEV_LABEL[f.severity]}] ${f.title}** — ${f.detail}${f.where ? ` _(${f.where})_` : ''}${f.evidence?.length ? `\n  \`${f.evidence.slice(0, 3).join(' | ').replace(/`/g, "'")}\`` : ''}`);
       L.push('');
     }
   }
-  for (const r of results.filter((r) => r.error)) L.push(`- Errore: \`${r.file.path}\`: ${r.error}`);
+  for (const r of results.filter((r) => r.error)) L.push(`- ${t('Errore')}: \`${r.file.path}\`: ${r.error}`);
   return L.join('\n') + '\n';
 }
 
@@ -108,27 +111,27 @@ function htmlOne(r) {
   const hashes = Object.entries(r.file.hashes || {}).map(([k, v]) => `<tr><td>${k.toUpperCase()}</td><td><code>${v}</code></td></tr>`).join('');
   return `<section id="f-${r.file.hashes.sha256.slice(0, 12)}"><h1>${esc(r.file.name)}</h1><p><small>${esc(r.file.type.label)} · ${esc(r.file.sizeHuman)} · ${esc(r.file.path || (r.file.chain || []).join(' › '))}</small></p>
 <div class="score" style="color:${LVL_HEX[r.overall.level]}">${r.overall.score}/100 <span>${esc(r.overall.verdict)}</span></div><p>${esc(r.overall.advice)}</p>
-<p><small>${r.totals.lines || r.totals.strings} ${r.totals.lines ? 'righe' : 'stringhe'} analizzate · ${r.totals.checks} controlli (${r.totals.checksFailed} non superati) · ${r.totals.extracted} contenuti estratti · ${r.totals.children} file interni · ${r.durationMs} ms</small></p>
-<h2>Punteggi per criterio</h2><table><tr><th>Criterio</th><th>Punteggio</th><th>Esito</th><th>Problemi</th><th>Controlli</th></tr>${cats}</table>
-<h2>Problemi (${r.findings.length})</h2><ul>${finds || '<li>Nessuno</li>'}</ul>
-<h2>Righe segnalate (${(r.lines || []).filter((l) => l.sev !== 'info').length})</h2><table>${lines || '<tr><td>Nessuna</td></tr>'}</table>
-<h2>Controlli eseguiti (${r.totals.checks})</h2>${checks}
-<h2>Impronte</h2><table>${hashes}</table></section>`;
+<p><small>${esc(t(r.totals.lines ? '{n} righe analizzate' : '{n} stringhe analizzate', { n: r.totals.lines || r.totals.strings }))} · ${esc(t('{n} controlli ({f} non superati)', { n: r.totals.checks, f: r.totals.checksFailed }))} · ${esc(t('{n} contenuti estratti', { n: r.totals.extracted }))} · ${esc(t('{n} file interni', { n: r.totals.children }))} · ${r.durationMs} ms</small></p>
+<h2>${t('Punteggi per criterio')}</h2><table><tr><th>${t('Criterio')}</th><th>${t('Punteggio')}</th><th>${t('Esito')}</th><th>${t('Problemi')}</th><th>${t('Controlli')}</th></tr>${cats}</table>
+<h2>${t('Problemi ({n})', { n: r.findings.length })}</h2><ul>${finds || `<li>${t('Nessuno')}</li>`}</ul>
+<h2>${t('Righe segnalate ({n})', { n: (r.lines || []).filter((l) => l.sev !== 'info').length })}</h2><table>${lines || `<tr><td>${t('Nessuna')}</td></tr>`}</table>
+<h2>${t('Controlli eseguiti ({n})', { n: r.totals.checks })}</h2>${checks}
+<h2>${t('Impronte')}</h2><table>${hashes}</table></section>`;
 }
 
 function html(results) {
   const ok = results.filter((r) => !r.error);
-  const index = ok.length > 1 ? `<h1>Riepilogo (${ok.length} file)</h1><table><tr><th>Punteggio</th><th>Verdetto</th><th>File</th></tr>${[...ok].sort((a, b) => a.overall.score - b.overall.score).map((r) => `<tr><td style="color:${LVL_HEX[r.overall.level]};font-weight:700">${r.overall.score}</td><td>${esc(r.overall.verdict)}</td><td><a href="#f-${r.file.hashes.sha256.slice(0, 12)}">${esc(r.file.path || r.file.name)}</a></td></tr>`).join('')}</table><hr>` : '';
-  return `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Report Gauntler${ok.length === 1 ? ' – ' + esc(ok[0].file.name) : ''}</title>
+  const index = ok.length > 1 ? `<h1>${t('Riepilogo ({n} file)', { n: ok.length })}</h1><table><tr><th>${t('Punteggio')}</th><th>${t('Verdetto')}</th><th>File</th></tr>${[...ok].sort((a, b) => a.overall.score - b.overall.score).map((r) => `<tr><td style="color:${LVL_HEX[r.overall.level]};font-weight:700">${r.overall.score}</td><td>${esc(r.overall.verdict)}</td><td><a href="#f-${r.file.hashes.sha256.slice(0, 12)}">${esc(r.file.path || r.file.name)}</a></td></tr>`).join('')}</table><hr>` : '';
+  return `<!doctype html><html lang="${i18n.getLanguage()}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${t('Report Gauntler')}${ok.length === 1 ? ' – ' + esc(ok[0].file.name) : ''}</title>
 <style>body{font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:1000px;margin:32px auto;padding:0 16px;color:#111827}h1{margin:24px 0 0}.score{font-size:52px;font-weight:800}.score span{font-size:22px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e5e7eb;padding:6px 8px;text-align:left;vertical-align:top}li{margin:8px 0}code{background:#f3f4f6;padding:1px 4px;border-radius:4px;word-break:break-all;font-size:12px}small{color:#6b7280}.chk li{margin:2px 0;list-style:none}summary{cursor:pointer;font-weight:600;margin:6px 0}section{margin-bottom:48px}</style></head><body>
-<p><small>Report generato da Gauntler ${VERSION} · ${new Date().toLocaleString('it-IT')}</small></p>${index}${ok.map(htmlOne).join('<hr>')}
-${results.filter((r) => r.error).map((r) => `<p>Errore: ${esc(r.file.path)}: ${esc(r.error)}</p>`).join('')}</body></html>`;
+<p><small>${t('Report generato da Gauntler {v}', { v: VERSION })} · ${new Date().toLocaleString(i18n.locale())}</small></p>${index}${ok.map(htmlOne).join('<hr>')}
+${results.filter((r) => r.error).map((r) => `<p>${t('Errore')}: ${esc(r.file.path)}: ${esc(r.error)}</p>`).join('')}</body></html>`;
 }
 
 const FORMATS = { json, sarif, csv, md, markdown: md, html };
 function render(format, results, opts) {
   const fn = FORMATS[format];
-  if (!fn) throw new Error(`Formato sconosciuto: ${format}. Disponibili: ${Object.keys(FORMATS).join(', ')}`);
+  if (!fn) throw new Error(t('Formato sconosciuto: {f}. Disponibili: {list}', { f: format, list: Object.keys(FORMATS).join(', ') }));
   return fn(results, opts);
 }
 

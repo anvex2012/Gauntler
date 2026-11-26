@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('./i18n');
 /**
  * Online reputation (OPTIONAL, only when explicitly requested).
  * Only the SHA-256 fingerprint of the file is sent, never its content.
@@ -90,7 +91,7 @@ async function updateFeeds(keys = {}) {
     if (f.auth && !key) { res.push({ ...f, error: 'serve una Auth-Key gratuita di abuse.ch → registrati su https://auth.abuse.ch e poi: gauntler config set online.malwarebazaar <chiave>' }); continue; }
     try {
       const r = await http(f.url(key), {}, 120000);
-      if (!r.ok) { res.push({ ...f, error: `HTTP ${r.status}${r.status === 401 || r.status === 403 ? ' (Auth-Key non valida)' : ''}` }); continue; }
+      if (!r.ok) { res.push({ ...f, error: r.status === 401 || r.status === 403 ? msg('HTTP {s} (Auth-Key non valida)', { s: r.status }) : `HTTP ${r.status}` }); continue; }
       let buf = Buffer.from(await r.arrayBuffer());
       if (buf[0] === 0x50 && buf[1] === 0x4b) { // ZIP export
         const { readZip, extract } = require('./zip');

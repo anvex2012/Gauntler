@@ -1,6 +1,7 @@
 // Creato da anvex2012
 import React, { useState } from 'react';
 import { VirtualList, KV } from './ui.jsx';
+import { t } from '../i18n.js';
 import Icon from './Icon.jsx';
 import { codeRow, useSettings } from '../settings.js';
 
@@ -31,7 +32,7 @@ function Listing({ rows, binary }) {
         if (r.sep) return <div key={i} style={style} className="code-row" />;
         if (r.label) return <div key={i} style={style} className="code-row asm-label">{r.label}:</div>;
         return (
-          <div key={i} style={style} className="code-row" title={`Offset nel file 0x${(r.off || 0).toString(16)}`}>
+          <div key={i} style={style} className="code-row" title={t('Offset nel file 0x{off}', { off: (r.off || 0).toString(16) })}>
             <span className="asm-addr">{hex(r.va)}  </span>
             <span className="asm-bytes">{fmt(r).padEnd(width)}  </span>
             <span className={r.flow && r.flow !== 'seq' ? `asm-flow-${r.flow}` : undefined}>{r.text}</span>
@@ -52,14 +53,14 @@ export default function Disasm({ r }) {
   return (
     <section className="tech">
       <div className="panel">
-        <h3><Icon name="binary" /> Codice macchina</h3>
+        <h3><Icon name="binary" /> {t('Codice macchina')}</h3>
         <KV data={cat?.info || {}} />
       </div>
       {mc.functions?.length > 0 ? (
         <div className="panel">
-          <h3><Icon name="cpu" /> Funzioni più complesse<span className="grow" /><span className="hint">prime {Math.min(15, mc.functions.length)}</span></h3>
+          <h3><Icon name="cpu" /> {t('Funzioni più complesse')}<span className="grow" /><span className="hint">{t('prime {n}', { n: Math.min(15, mc.functions.length) })}</span></h3>
           <table className="tbl plain">
-            <thead><tr><th>Indirizzo</th><th>Nome</th><th>Blocchi</th><th>Byte</th><th>Cicli</th><th>Complessità</th></tr></thead>
+            <thead><tr><th>{t('Indirizzo')}</th><th>{t('Nome')}</th><th>{t('Blocchi')}</th><th>Byte</th><th>{t('Cicli')}</th><th>{t('Complessità')}</th></tr></thead>
             <tbody>{mc.functions.slice(0, 15).map((f) => (
               <tr key={f.address}><td className="mono">{f.address}</td><td className="mono nowrap" title={f.name}>{f.name}</td><td className="num">{f.blocks}</td><td className="num">{f.size}</td><td className="num">{f.loops}</td><td className="num">{f.cyclomatic}</td></tr>
             ))}</tbody>
@@ -67,20 +68,20 @@ export default function Disasm({ r }) {
         </div>
       ) : mc.shellcode?.length > 0 && (
         <div className="panel">
-          <h3><Icon name="shieldAlert" /> Shellcode individuato</h3>
+          <h3><Icon name="shieldAlert" /> {t('Shellcode individuato')}</h3>
           <table className="tbl plain">
-            <thead><tr><th>Offset</th><th>Modo</th><th>Affidabilità</th><th>Tecniche riconosciute</th></tr></thead>
+            <thead><tr><th>{t('Offset')}</th><th>{t('Modo')}</th><th>{t('Affidabilità')}</th><th>{t('Tecniche riconosciute')}</th></tr></thead>
             <tbody>{mc.shellcode.map((s, i) => (
-              <tr key={i}><td className="mono">0x{s.start.toString(16)}</td><td>{s.bits}-bit</td><td>{s.confidence === 'high' ? 'Alta' : 'Media'}</td><td className="small">{(s.behaviours || []).map((b) => BEHAVIOUR[b] || b).join(', ')}</td></tr>
+              <tr key={i}><td className="mono">0x{s.start.toString(16)}</td><td>{s.bits}-bit</td><td>{s.confidence === 'high' ? t('Alta') : t('Media')}</td><td className="small">{(s.behaviours || []).map((b) => t(BEHAVIOUR[b] || b)).join(', ')}</td></tr>
             ))}</tbody>
           </table>
         </div>
       )}
       {mc.xor?.length > 0 && (
         <div className="panel">
-          <h3><Icon name="key" /> Contenuti cifrati con XOR/ADD <span className="hint">chiave recuperata</span></h3>
+          <h3><Icon name="key" /> {t('Contenuti cifrati con XOR/ADD')} <span className="hint">{t('chiave recuperata')}</span></h3>
           <table className="tbl plain">
-            <thead><tr><th>Operazione</th><th>Chiave</th><th>Offset</th><th>Contenuto riconosciuto</th><th>Anteprima</th></tr></thead>
+            <thead><tr><th>{t('Operazione')}</th><th>{t('Chiave')}</th><th>{t('Offset')}</th><th>{t('Contenuto riconosciuto')}</th><th>{t('Anteprima')}</th></tr></thead>
             <tbody>{mc.xor.map((x, i) => (
               <tr key={i}><td>{x.op.toUpperCase()}</td><td className="mono">0x{x.key}</td><td className="mono">0x{x.offset.toString(16)}</td><td>{x.plaintext}</td><td className="mono small wrap muted">{x.sample}</td></tr>
             ))}</tbody>
@@ -89,18 +90,18 @@ export default function Disasm({ r }) {
       )}
       <div className="panel">
         <h3>
-          <Icon name="code" /> Listato assembly
+          <Icon name="code" /> {t('Listato assembly')}
           <span className="grow" />
-          <select className="select" value={which} onChange={(e) => setWhich(e.target.value === 'main' ? 'main' : +e.target.value)} aria-label="Codice da visualizzare">
-            {mc.listing && <option value="main">Dal punto di avvio</option>}
-            {(mc.shellcode || []).map((s, i) => <option key={i} value={i}>Shellcode a 0x{s.start.toString(16)} ({s.bits}-bit)</option>)}
+          <select className="select" value={which} onChange={(e) => setWhich(e.target.value === 'main' ? 'main' : +e.target.value)} aria-label={t('Codice da visualizzare')}>
+            {mc.listing && <option value="main">{t('Dal punto di avvio')}</option>}
+            {(mc.shellcode || []).map((s, i) => <option key={i} value={i}>{t('Shellcode a 0x{at} ({bits}-bit)', { at: s.start.toString(16), bits: s.bits })}</option>)}
           </select>
-          <div className="seg" role="group" aria-label="Formato dei byte">
-            <button className={!binary ? 'on' : ''} aria-pressed={!binary} onClick={() => setBinary(false)}>Esadecimale</button>
-            <button className={binary ? 'on' : ''} aria-pressed={binary} onClick={() => setBinary(true)}>Binario</button>
+          <div className="seg" role="group" aria-label={t('Formato dei byte')}>
+            <button className={!binary ? 'on' : ''} aria-pressed={!binary} onClick={() => setBinary(false)}>{t('Esadecimale')}</button>
+            <button className={binary ? 'on' : ''} aria-pressed={binary} onClick={() => setBinary(true)}>{t('Binario')}</button>
           </div>
         </h3>
-        {rows?.length ? <Listing rows={rows} binary={binary} /> : <p className="muted">Nessun listato disponibile per questo file.</p>}
+        {rows?.length ? <Listing rows={rows} binary={binary} /> : <p className="muted">{t('Nessun listato disponibile per questo file.')}</p>}
       </div>
     </section>
   );

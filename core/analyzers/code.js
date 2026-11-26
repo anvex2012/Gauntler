@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const { countMatches, strEntropy, truncate } = require('../utils');
 
 /**
@@ -46,7 +47,7 @@ module.exports = {
       if (line.length > st.longest) st.longest = line.length;
       if (line.length > 5000 && (ctx.type.family !== 'text' || unit.kind === 'extracted')) {
         st.longLines++;
-        ctx.annotate(unit.loc(pos), line, { id: 'code:longline', sev: 'info', label: `Riga di ${line.length} caratteri`, desc: 'Codice compresso in una sola riga (minificato o offuscato).' });
+        ctx.annotate(unit.loc(pos), line, { id: 'code:longline', sev: 'info', label: msg('Riga di {n} caratteri', { n: line.length }), desc: 'Codice compresso in una sola riga (minificato o offuscato).' });
       }
       pos += line.length + 1;
     }
@@ -64,25 +65,27 @@ module.exports = {
       const s = score(n, ctx, kl);
       obf += s;
       if (s) evid.push(`${name}: ${n}`);
-      checks.push({ name: `Offuscamento — ${name}`, ok: !s, note: `${n}` });
+      checks.push({ name: msg('Offuscamento — {name}', { name }), ok: !s, note: `${n}` });
     }
-    if (st.longest > 5000 && scripty && obf >= 2) { obf += 1; evid.push(`riga più lunga: ${st.longest} caratteri`); }
+    if (st.longest > 5000 && scripty && obf >= 2) { obf += 1; evid.push(msg('riga più lunga: {n} caratteri', { n: st.longest })); }
     const ent = strEntropy(st.entSample);
-    if (ent > 5.9 && scripty) { obf += 1; evid.push(`entropia del codice ${ent.toFixed(2)}`); }
+    if (ent > 5.9 && scripty) { obf += 1; evid.push(msg('entropia del codice {e}', { e: ent.toFixed(2) })); }
     checks.push({ name: 'Entropia del codice nella norma (≤ 5.9)', ok: !(ent > 5.9 && scripty), note: ent.toFixed(2) });
     checks.push({ name: 'Righe lunghissime (> 5000 caratteri)', ok: !st.longLines, note: `${st.longLines}` });
     const idx = Math.min(10, obf);
-    if (obf >= 6) out.push({ severity: 'high', title: `Codice fortemente offuscato (indice ${idx}/10)`, detail: 'Il codice è nascosto intenzionalmente: tecnica tipica dei malware.', evidence: evid });
-    else if (obf >= 3) out.push({ severity: 'medium', title: `Codice parzialmente offuscato (indice ${idx}/10)`, detail: 'Alcune tecniche di occultamento del codice.', evidence: evid });
+    if (obf >= 6) out.push({ severity: 'high', title: msg('Codice fortemente offuscato (indice {i}/10)', { i: idx }), detail: 'Il codice è nascosto intenzionalmente: tecnica tipica dei malware.', evidence: evid });
+    else if (obf >= 3) out.push({ severity: 'medium', title: msg('Codice parzialmente offuscato (indice {i}/10)', { i: idx }), detail: 'Alcune tecniche di occultamento del codice.', evidence: evid });
 
     const dec = ctx.decoded || [];
     if (dec.length) {
       const bin = dec.filter((d) => ['exe', 'elf', 'macho', 'lnk', 'dex', 'ole', 'rtf', 'pdf', 'zip', 'rar', '7z'].includes(d.magic));
       out.push({
         severity: bin.length ? 'high' : dec.some((d) => d.depth > 1) ? 'medium' : dec.every((d) => ['wasm', 'png', 'jpg', 'gz'].includes(d.magic)) ? 'info' : 'low',
-        title: `Contenuti nascosti decodificati (${dec.length})`,
-        detail: `Blocchi codificati sono stati decodificati${dec.some((d) => d.depth > 1) ? ' su più livelli' : ''} e rianalizzati da tutti i criteri.${bin.length ? ` ${bin.length} contengono file eseguibili/archivi.` : ''}`,
-        evidence: dec.slice(0, 12).map((d) => `${d.label} [da ${d.from}]: ${d.magic ? 'file ' + d.magic : truncate(d.preview || '', 80)}`),
+        title: msg('Contenuti nascosti decodificati ({n})', { n: dec.length }),
+        detail: msg(dec.some((d) => d.depth > 1)
+          ? (bin.length ? 'Blocchi codificati sono stati decodificati su più livelli e rianalizzati da tutti i criteri. {n} contengono file eseguibili/archivi.' : 'Blocchi codificati sono stati decodificati su più livelli e rianalizzati da tutti i criteri.')
+          : (bin.length ? 'Blocchi codificati sono stati decodificati e rianalizzati da tutti i criteri. {n} contengono file eseguibili/archivi.' : 'Blocchi codificati sono stati decodificati e rianalizzati da tutti i criteri.'), { n: bin.length }),
+        evidence: dec.slice(0, 12).map((d) => (d.magic ? msg('{label} [da {from}]: file {magic}', { label: d.label, from: d.from, magic: d.magic }) : msg('{label} [da {from}]: {preview}', { label: d.label, from: d.from, preview: truncate(d.preview || '', 80) }))),
         loc: dec[0].loc, locs: dec.map((d) => d.loc),
       });
     }

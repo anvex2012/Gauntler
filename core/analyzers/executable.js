@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const crypto = require('crypto');
 const { shannon } = require('../utils');
 
@@ -215,17 +216,19 @@ module.exports = {
     }
     C('Intestazioni del formato valide', true);
     const text = ctx.text;
+    const techs = [];
     for (const [re, label, sev] of TOOLCHAIN) {
       if (re.test(text)) {
-        info['Tecnologia'] = (info['Tecnologia'] ? info['Tecnologia'] + ', ' : '') + label;
-        if (sev !== 'info') out.push({ severity: sev, title: `Rilevato: ${label}`, detail: sev === 'medium' ? 'Strumento molto usato per nascondere il codice dei malware.' : 'Programma impacchettato: il codice reale è contenuto all\'interno.' });
+        techs.push(label);
+        info['Tecnologia'] = msg('{list}', { list: techs });
+        if (sev !== 'info') out.push({ severity: sev, title: msg('Rilevato: {label}', { label }), detail: sev === 'medium' ? 'Strumento molto usato per nascondere il codice dei malware.' : 'Programma impacchettato: il codice reale è contenuto all\'interno.' });
       }
     }
 
     if (p.format === 'PE') {
       const v = p.version;
       Object.assign(info, {
-        Formato: `PE ${p.bits}-bit (${p.machine})`, Sottosistema: p.subsystem, '.NET': p.dotnet ? 'sì' : 'no', 'Firma digitale': p.signed ? `presente (${p.signatureSize} byte)` : 'assente',
+        Formato: msg('PE {bits}-bit ({machine})', { bits: p.bits, machine: p.machine }), Sottosistema: p.subsystem, '.NET': p.dotnet ? 'sì' : 'no', 'Firma digitale': p.signed ? msg('presente ({n} byte)', { n: p.signatureSize }) : 'assente',
         'Funzioni importate': p.importCount, 'DLL importate': Object.keys(p.imports).length, 'Funzioni esportate': p.exports.length, imphash: p.imphash || '-', Linker: p.linker, 'Image base': p.imageBase,
         'Data compilazione': p.timestamp ? new Date(p.timestamp * 1000).toISOString().slice(0, 19).replace('T', ' ') : 'azzerata',
       });
@@ -241,19 +244,19 @@ module.exports = {
       const orig = (v.OriginalFilename || '').replace(/\.mui$/i, '');
       const renamed = orig && orig.toLowerCase() !== ctx.name.toLowerCase() && !ctx.virtual;
       C('Nome originale uguale al nome attuale', !renamed, orig || 'n/d');
-      if (renamed) out.push({ severity: /^(psexec|procdump|rclone|anydesk|nc|ncat|plink|mimikatz|rubeus|7z|winrar|certutil|cmd|powershell)/i.test(orig) ? 'high' : 'low', title: 'Programma rinominato', detail: `Il nome originale era "${orig}". I malware e gli attaccanti rinominano gli strumenti per nasconderli.` });
+      if (renamed) out.push({ severity: /^(psexec|procdump|rclone|anydesk|nc|ncat|plink|mimikatz|rubeus|7z|winrar|certutil|cmd|powershell)/i.test(orig) ? 'high' : 'low', title: 'Programma rinominato', detail: msg('Il nome originale era "{orig}". I malware e gli attaccanti rinominano gli strumenti per nasconderli.', { orig }) });
       const fakeSys = /^(svchost|lsass|csrss|winlogon|services|smss|explorer|rundll32|dllhost|spoolsv|taskhostw?|conhost|wininit)\.exe$/i.test(ctx.name) && !p.signed;
       C('Non imita processi di sistema Windows', !fakeSys);
-      if (fakeSys) out.push({ severity: 'critical', title: 'Imita un processo di sistema di Windows', detail: `"${ctx.name}" è il nome di un componente di Windows, ma questo file non è firmato.` });
+      if (fakeSys) out.push({ severity: 'critical', title: 'Imita un processo di sistema di Windows', detail: msg('"{name}" è il nome di un componente di Windows, ma questo file non è firmato.', { name: ctx.name }) });
 
       const future = p.timestamp > Date.now() / 1000 + 86400;
       C('Data di compilazione plausibile', !future && !(p.timestamp && p.timestamp < 631152000 && !p.dotnet), info['Data compilazione']);
       if (future) out.push({ severity: 'medium', title: 'Data di compilazione nel futuro', detail: 'Il timestamp è stato falsificato.' });
-      else if (p.timestamp && p.timestamp < 631152000 && !p.dotnet) out.push({ severity: 'low', title: 'Data di compilazione anomala', detail: `Data: ${info['Data compilazione']} (possibile falsificazione).` });
+      else if (p.timestamp && p.timestamp < 631152000 && !p.dotnet) out.push({ severity: 'low', title: 'Data di compilazione anomala', detail: msg('Data: {date} (possibile falsificazione).', { date: info['Data compilazione'] }) });
 
       const packers = new Set(p.sections.map((s) => PACKER_SECTIONS[s.name]).filter(Boolean));
       C('Nessun packer/protettore noto', !packers.size, [...packers].join(', '));
-      if (packers.size) out.push({ severity: 'high', title: `Compresso con packer: ${[...packers].join(', ')}`, detail: 'Il codice è compresso/cifrato per nascondere il contenuto reale.' });
+      if (packers.size) out.push({ severity: 'high', title: msg('Compresso con packer: {list}', { list: [...packers] }), detail: 'Il codice è compresso/cifrato per nascondere il contenuto reale.' });
       const odd = p.sections.filter((s) => !STD_SECTIONS.has(s.name) && !PACKER_SECTIONS[s.name]);
       C('Nomi di sezione standard', !odd.length, odd.map((s) => s.name).join(', '));
       if (odd.length) out.push({ severity: 'low', title: 'Sezioni con nomi insoliti', detail: 'Nomi di sezione non standard (packer o compilatori rari).', evidence: odd.map((s) => JSON.stringify(s.name)) });
@@ -267,17 +270,17 @@ module.exports = {
       if (virt.length) out.push({ severity: 'medium', title: 'Sezione eseguibile vuota su disco', detail: 'Verrà riempita in memoria a runtime (tipico dei packer).', evidence: virt.map((s) => s.name) });
       const epOk = !p.entrySection || /^(\.text|CODE|\.code|\.init|INIT|\.textbss|PAGE)$/i.test(p.entrySection);
       C('Punto di avvio nella sezione di codice', epOk && !(!p.entrySection && p.entryRva), p.entrySection || '-');
-      if (!epOk) out.push({ severity: 'medium', title: 'Punto di avvio in sezione insolita', detail: `L'esecuzione parte dalla sezione "${p.entrySection}" invece di ".text".` });
+      if (!epOk) out.push({ severity: 'medium', title: 'Punto di avvio in sezione insolita', detail: msg('L\'esecuzione parte dalla sezione "{name}" invece di ".text".', { name: p.entrySection }) });
       if (!p.entrySection && p.entryRva && ctx.type.id === 'pe') out.push({ severity: 'high', title: 'Punto di avvio fuori dalle sezioni', detail: 'Struttura manipolata.' });
       const fewImp = !p.dotnet && p.importCount > 0 && p.importCount < 10;
       C('Tabella import completa (≥ 10 funzioni)', !fewImp && !(p.importCount === 0 && !p.dotnet), `${p.importCount}`);
-      if (fewImp) out.push({ severity: 'medium', title: 'Pochissime funzioni importate', detail: `Solo ${p.importCount} importazioni: tipico di programmi impacchettati che caricano il codice a runtime.`, evidence: Object.values(p.imports).flat().slice(0, 10) });
+      if (fewImp) out.push({ severity: 'medium', title: 'Pochissime funzioni importate', detail: msg('Solo {n} importazioni: tipico di programmi impacchettati che caricano il codice a runtime.', { n: p.importCount }), evidence: Object.values(p.imports).flat().slice(0, 10) });
       if (!p.dotnet && p.importCount === 0 && ctx.type.id === 'pe') out.push({ severity: 'medium', title: 'Nessuna tabella di import', detail: 'Il programma nasconde le funzioni che usa.' });
       C('Nessun callback TLS', !p.tls);
       if (p.tls) out.push({ severity: 'low', title: 'Callback TLS', detail: 'Codice eseguito prima del punto di avvio (tecnica anti-debug, ma usata anche da programmi legittimi).' });
       const bigOverlay = p.overlay > 1024 * 1024 && p.overlay > buf.length * 0.5;
       C('Nessun grande blocco di dati in coda (overlay)', !bigOverlay, `${Math.round(p.overlay / 1024)} KB`);
-      if (bigOverlay && !p.signed) out.push({ severity: 'low', title: 'Grandi dati in coda al file (overlay)', detail: `${Math.round(p.overlay / 1024)} KB aggiunti dopo il programma (installer o payload nascosto).` });
+      if (bigOverlay && !p.signed) out.push({ severity: 'low', title: 'Grandi dati in coda al file (overlay)', detail: msg('{n} KB aggiunti dopo il programma (installer o payload nascosto).', { n: Math.round(p.overlay / 1024) }) });
       C('ASLR attivo', !!(p.dllChars & 0x40)); C('DEP/NX attivo', !!(p.dllChars & 0x100)); C('Control Flow Guard', p.cfg); C('Rich header presente (compilatore Microsoft)', p.rich);
       if (!(p.dllChars & 0x40)) out.push({ severity: 'low', title: 'ASLR disattivato', detail: 'Protezione di sicurezza della memoria assente.' });
       if (!(p.dllChars & 0x100)) out.push({ severity: 'low', title: 'DEP/NX disattivato', detail: 'Protezione contro l\'esecuzione di dati assente.' });
@@ -289,20 +292,20 @@ module.exports = {
         const hit = fns.filter((f) => allFns.has(f));
         const minHits = group === 'Caricamento dinamico' || group === 'Esecuzione di comandi' || group === 'Enumerazione file e processi' ? 99 : 2;
         const triggered = hit.length >= Math.min(minHits, fns.length);
-        C(`API: ${group}`, !triggered, hit.length ? hit.join(', ') : 'nessuna');
+        C(msg('API: {group}', { group }), !triggered, hit.length ? hit.join(', ') : 'nessuna');
         if (triggered) {
           groupsHit++;
           const sev = /Iniezione|tasti|credenziali|disco/.test(group) ? 'high' : 'low';
-          out.push({ severity: sev, title: `Funzioni di sistema: ${group}`, detail: 'API importate associate a comportamenti sospetti.', evidence: hit });
+          out.push({ severity: sev, title: msg('Funzioni di sistema: {group}', { group }), detail: 'API importate associate a comportamenti sospetti.', evidence: hit });
         }
       }
       C('Combinazione di capacità rischiose (< 4 categorie)', groupsHit < 4, `${groupsHit}`);
-      if (groupsHit >= 4) out.push({ severity: 'high', title: 'Combinazione di capacità sospette', detail: `${groupsHit} categorie di API rischiose nello stesso programma.` });
+      if (groupsHit >= 4) out.push({ severity: 'high', title: 'Combinazione di capacità sospette', detail: msg('{n} categorie di API rischiose nello stesso programma.', { n: groupsHit }) });
       return { findings: out, checks, info, extra: { executable: { format: 'PE', sections: p.sections, imports: p.imports, exports: p.exports, version: v, imphash: p.imphash } } };
     }
 
     if (p.format === 'ELF') {
-      Object.assign(info, { Formato: `ELF ${p.bits}-bit (${p.machine})`, Tipo: p.type, ABI: p.osabi, Interprete: p.interp || '-', Simboli: p.stripped ? 'rimossi' : 'presenti', Linking: p.static ? 'statico' : 'dinamico', Sezioni: p.sections.length, Segmenti: p.segments.map((s) => `${s.type}[${s.flags}]`).join(' ') });
+      Object.assign(info, { Formato: msg('ELF {bits}-bit ({machine})', { bits: p.bits, machine: p.machine }), Tipo: p.type, ABI: p.osabi, Interprete: p.interp || '-', Simboli: p.stripped ? 'rimossi' : 'presenti', Linking: p.static ? 'statico' : 'dinamico', Sezioni: p.sections.length, Segmenti: p.segments.map((s) => `${s.type}[${s.flags}]`).join(' ') });
       const rwx = p.segments.filter((s) => s.type === 'LOAD' && s.flags === 'RWX');
       C('Nessun segmento RWX', !rwx.length);
       if (rwx.length) out.push({ severity: 'high', title: 'Segmento leggibile, scrivibile ed eseguibile', detail: 'Codice automodificante (tipico di packer e malware).' });
@@ -322,7 +325,7 @@ module.exports = {
       return { findings: out, checks, info, extra: { executable: { format: 'ELF', sections: p.sections, segments: p.segments } } };
     }
 
-    Object.assign(info, { Formato: p.fat ? `Mach-O universale (${p.archs} architetture)` : `Mach-O ${p.bits}-bit (${p.cpu})`, Tipo: p.filetype || '-', 'Firma codice': p.signed ? (p.adhoc ? 'ad-hoc (senza sviluppatore)' : 'presente') : 'assente', 'Team ID': p.teamId || '-', Librerie: (p.dylibs || []).length, Entitlement: p.entitlements.length });
+    Object.assign(info, { Formato: p.fat ? msg('Mach-O universale ({n} architetture)', { n: p.archs }) : msg('Mach-O {bits}-bit ({cpu})', { bits: p.bits, cpu: p.cpu }), Tipo: p.filetype || '-', 'Firma codice': p.signed ? (p.adhoc ? 'ad-hoc (senza sviluppatore)' : 'presente') : 'assente', 'Team ID': p.teamId || '-', Librerie: (p.dylibs || []).length, Entitlement: p.entitlements.length });
     C('Firma del codice presente', p.signed);
     if (!p.signed) out.push({ severity: 'medium', title: 'App macOS non firmata', detail: 'Gatekeeper bloccherà l\'esecuzione: provenienza non verificabile.' });
     C('Firma di uno sviluppatore (non ad-hoc)', !p.adhoc);

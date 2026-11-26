@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('./i18n');
 const { isLikelyText } = require('./utils');
 
 const starts = (buf, bytes, off = 0) => bytes.every((b, i) => buf[off + i] === b);
@@ -101,7 +102,7 @@ function detectType(buf, name = '') {
     if (h.startsWith('{') || h.startsWith('[')) return T('json', 'Dati JSON / testo', 'text', 'application/json');
     const ext = (name.split('.').pop() || '').toLowerCase();
     const scriptExt = { ps1: 'PowerShell', psm1: 'PowerShell', bat: 'Batch', cmd: 'Batch', vbs: 'VBScript', vbe: 'VBScript', js: 'JavaScript', jse: 'JScript', mjs: 'JavaScript', cjs: 'JavaScript', ts: 'TypeScript', py: 'Python', sh: 'Shell', bash: 'Shell', zsh: 'Shell', rb: 'Ruby', pl: 'Perl', hta: 'HTA', wsf: 'Windows Script', applescript: 'AppleScript', scpt: 'AppleScript', lua: 'Lua', go: 'Go', java: 'Java', c: 'C', cpp: 'C++', cs: 'C#', rs: 'Rust', swift: 'Swift', kt: 'Kotlin', psd1: 'PowerShell' };
-    if (scriptExt[ext]) return T('script-' + ext, 'Script ' + scriptExt[ext], 'script', 'text/plain');
+    if (scriptExt[ext]) return T('script-' + ext, msg('Script {lang}', { lang: scriptExt[ext] }), 'script', 'text/plain');
     if (/powershell|invoke-expression|\$env:|new-object\s+net\.webclient/i.test(head)) return T('script-ps1', 'Script PowerShell (rilevato)', 'script');
     if (/^@echo off/im.test(head)) return T('script-bat', 'Script Batch (rilevato)', 'script');
     return T('text', 'Testo', 'text', 'text/plain');

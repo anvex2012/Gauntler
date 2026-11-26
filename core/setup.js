@@ -1,5 +1,7 @@
 // Creato da anvex2012
 'use strict';
+const i18n = require('./i18n');
+const { t } = i18n;
 /**
  * External components: ClamAV (antivirus engine + signature database) and bsdtar (RAR/7z/ISO/CAB…).
  * Installed automatically on the first start of the terminal command or of the desktop app,
@@ -166,12 +168,12 @@ async function installClamav({ interactive, gui, log }) {
       log('Homebrew non è riuscito: provo con il pacchetto ufficiale di ClamAV', 'warn');
     }
     const a = await officialAsset(/macos\.universal\.pkg$/);
-    log(`Scarico ClamAV ${a.version} (pacchetto ufficiale)…`, 'step');
+    log(t('Scarico ClamAV {v} (pacchetto ufficiale)…', { v: a.version }), 'step');
     const pkg = path.join(os.tmpdir(), a.name);
     await download(a.url, pkg, log);
     log('Installo ClamAV: macOS chiede la password di amministratore', 'step');
     const r = gui
-      ? await exec('osascript', ['-e', `do shell script "/usr/sbin/installer -pkg " & quoted form of "${pkg.replace(/"/g, '\\"')}" & " -target /" with prompt "Gauntler installa l'antivirus ClamAV." with administrator privileges`], { log })
+      ? await exec('osascript', ['-e', `do shell script "/usr/sbin/installer -pkg " & quoted form of "${pkg.replace(/"/g, '\\"')}" & " -target /" with prompt "${t('Gauntler installa l\'antivirus ClamAV.').replace(/"/g, '')}" with administrator privileges`], { log })
       : await exec('sudo', ['/usr/sbin/installer', '-pkg', pkg, '-target', '/'], { interactive: true, log });
     try { fs.unlinkSync(pkg); } catch { /* temp */ }
     return r.code === 0 && !!clamscan();
@@ -184,7 +186,7 @@ async function installClamav({ interactive, gui, log }) {
       if (r.code === 0 || clamscan()) return true;
     }
     const a = await officialAsset(/win\.x64\.msi$/);
-    log(`Scarico ClamAV ${a.version} (pacchetto ufficiale)…`, 'step');
+    log(t('Scarico ClamAV {v} (pacchetto ufficiale)…', { v: a.version }), 'step');
     const msi = path.join(os.tmpdir(), a.name);
     await download(a.url, msi, log);
     log('Installo ClamAV: Windows chiede l\'autorizzazione', 'step');
@@ -199,17 +201,21 @@ async function installLinux(pkgs, { interactive, gui, log }) {
   if (!m) { log('Gestore di pacchetti non riconosciuto: installa a mano clamav e bsdtar', 'err'); return false; }
   const list = [...new Set(pkgs.flatMap((k) => LINUX_PKGS[m][k]))];
   const cmd = LINUX_PKGS[m].cmd(list);
-  log(`Installo ${list.join(', ')} con ${m} (serve la password di amministratore)…`, 'step');
+  log(t('Installo {list} con {m} (serve la password di amministratore)…', { list: list.join(', '), m }), 'step');
   let r;
   if (process.getuid && process.getuid() === 0) r = await exec('sh', ['-c', cmd], { interactive, log });
   else if (interactive && which('sudo')) r = await exec('sudo', ['sh', '-c', cmd], { interactive: true, log });
   else if (which('pkexec')) r = await exec('pkexec', ['sh', '-c', cmd], { log });
-  else { log(`Esegui da terminale: sudo sh -c '${cmd}'`, 'err'); return false; }
+  else { log(t('Esegui da terminale: {cmd}', { cmd: `sudo sh -c '${cmd}'` }), 'err'); return false; }
   return r.code === 0;
 }
 
+/** Log messages in the current language (command output is passed through as is) */
+const localLog = (log) => (log.localized ? log : Object.assign((text, kind) => log(kind === 'out' ? text : i18n.translate(text), kind), { localized: true }));
+
 /** Signature database in ~/.gauntler/clamav (no password needed, now or for updates) */
-async function updateDatabase({ interactive, log = () => {}, quiet } = {}) {
+async function updateDatabase({ interactive, log: rawLog = () => {}, quiet } = {}) {
+  const log = localLog(rawLog);
   const fc = freshclam();
   if (!fc) { if (!quiet) log('freshclam non trovato: impossibile scaricare le firme', 'err'); return false; }
   const dir = DB_DIR();
@@ -227,7 +233,7 @@ async function updateDatabase({ interactive, log = () => {}, quiet } = {}) {
   const r = await exec(fc, [`--config-file=${conf}`, `--datadir=${dir}`, '--stdout'], { interactive, log });
   const ok = !!ownDatabase();
   if (ok) writeState({ databaseUpdated: new Date().toISOString() });
-  else if (!quiet) log(`freshclam non è riuscito (codice ${r.code})${r.tail ? ': ' + r.tail.trim().split('\n').pop() : ''}`, 'err');
+  else if (!quiet) log(t('freshclam non è riuscito (codice {code})', { code: r.code }) + (r.tail ? ': ' + r.tail.trim().split('\n').pop() : ''), 'err');
   return ok;
 }
 /** Refreshes Gauntler's signatures when older than maxDays (background, never asks anything) */
@@ -242,7 +248,8 @@ async function refreshDatabase(maxDays = 3) {
  * Installs whatever is missing. mode: 'terminal' (interactive, sudo allowed) or 'gui' (desktop app: graphical prompts).
  * log(text, kind): kind = step | ok | warn | err | out
  */
-async function run({ mode = 'terminal', log = () => {} } = {}) {
+async function run({ mode = 'terminal', log: rawLog = () => {} } = {}) {
+  const log = localLog(rawLog);
   const interactive = mode === 'terminal' && process.stdin.isTTY;
   const gui = mode === 'gui';
   const res = { clamav: null, database: null, bsdtar: null };
@@ -257,13 +264,13 @@ async function run({ mode = 'terminal', log = () => {} } = {}) {
     } else if (!s.clamav) {
       await installClamav({ interactive, gui, log });
     }
-  } catch (e) { log('Installazione non riuscita: ' + e.message, 'err'); }
+  } catch (e) { log(t('Installazione non riuscita: {msg}', { msg: e.message }), 'err'); }
 
   s = status();
   res.bsdtar = s.bsdtar ? 'ok' : 'mancante';
   res.clamav = s.clamav ? 'ok' : 'mancante';
-  log(s.bsdtar ? `bsdtar pronto (${s.bsdtar})` : 'bsdtar non disponibile: RAR/7z/ISO useranno solo gli strumenti presenti', s.bsdtar ? 'ok' : 'warn');
-  log(s.clamav ? `ClamAV pronto (${s.clamav})` : 'ClamAV non installato', s.clamav ? 'ok' : 'warn');
+  log(s.bsdtar ? t('bsdtar pronto ({path})', { path: s.bsdtar }) : 'bsdtar non disponibile: RAR/7z/ISO useranno solo gli strumenti presenti', s.bsdtar ? 'ok' : 'warn');
+  log(s.clamav ? t('ClamAV pronto ({path})', { path: s.clamav }) : 'ClamAV non installato', s.clamav ? 'ok' : 'warn');
 
   // 3) Signatures
   if (s.clamav) {

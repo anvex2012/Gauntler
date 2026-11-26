@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('./i18n');
 /**
  * Deep extraction of hidden content:
  *  - printable strings (ASCII + UTF-16) from binaries
@@ -174,14 +175,14 @@ function office(buf, budget = limits.standalone()) {
     if (!r.data) continue;
     if (/\.(xml|rels|vml|txt)$/i.test(e.name)) {
       const t = r.data.toString('utf8');
-      texts.push({ label: `Parte del documento: ${e.name}`, text: t, kind: 'xml' });
+      texts.push({ label: msg('Parte del documento: {name}', { name: e.name }), text: t, kind: 'xml' });
       if (/(word\/document|word\/header\d*|word\/footer\d*|xl\/sharedStrings|ppt\/slides\/slide\d+|content)\.xml$/i.test(e.name)) {
         const words = [...t.matchAll(/<(?:w|a|text):(?:t|p|span)[^>]*>([^<]*)</g)].map((m) => m[1]).filter(Boolean);
         const xs = words.length ? words : [...t.matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map((m) => m[1]);
         if (xs.length) docText.push(xs.join(' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"'));
       }
     } else if (/embeddings\/|oleObject|activeX.*\.bin$|\.(exe|dll|js|vbs|ps1|bat|hta|lnk|scr)$/i.test(e.name)) {
-      embedded.push({ name: e.name.split('/').pop(), buffer: r.data, origin: `oggetto incorporato ${e.name}` });
+      embedded.push({ name: e.name.split('/').pop(), buffer: r.data, origin: msg('oggetto incorporato {name}', { name: e.name }) });
     }
   }
   if (docText.length) texts.push({ label: 'Testo visibile del documento', text: docText.join('\n'), kind: 'doctext' });
@@ -372,8 +373,8 @@ function bsdtarStream(cmd, src, budget, compressedSize) {
   const r = spawnSync(cmd, ['-cf', '-', '--format', 'pax', '@' + src], { maxBuffer: cap + headerRoom, timeout: 15 * 60 * 1000, stdio: ['ignore', 'pipe', 'ignore'] });
   const stdout = r.stdout || Buffer.alloc(0);
   if (r.error && limits.isTooLarge(r.error)) {
-    if (ratioCap <= budget.remaining()) budget.trip('ratio', `Rapporto di compressione oltre ${L.maxRatio}:1 (${limits.fmt(compressedSize)} compressi → più di ${limits.fmt(cap)}).`, 'archivio (bsdtar)');
-    else budget.trip('total', `Dati decompressi oltre il limite totale di ${limits.fmt(L.maxTotalBytes)}.`, 'archivio (bsdtar)');
+    if (ratioCap <= budget.remaining()) budget.trip('ratio', msg('Rapporto di compressione oltre {max}:1 ({c} compressi → più di {cap}).', { max: L.maxRatio, c: limits.fmt(compressedSize), cap: limits.fmt(cap) }), 'archivio (bsdtar)');
+    else budget.trip('total', msg('Dati decompressi oltre il limite totale di {max}.', { max: limits.fmt(L.maxTotalBytes) }), 'archivio (bsdtar)');
     return { limit: true, produced: stdout.length };
   }
   const files = [];
@@ -384,7 +385,7 @@ function bsdtarStream(cmd, src, budget, compressedSize) {
     if (!budget.admitFile(e.name) || !budget.consume(e.data.length, e.name)) return { limit: true, produced: stdout.length };
     files.push({ name: e.name.replace(/^\.\//, ''), data: e.data });
   }
-  if (payload > ratioCap) { budget.trip('ratio', `Rapporto di compressione ${Math.round(payload / Math.max(1, compressedSize))}:1 oltre il limite di ${L.maxRatio}:1.`, 'archivio (bsdtar)'); return { limit: true, produced: stdout.length }; }
+  if (payload > ratioCap) { budget.trip('ratio', msg('Rapporto di compressione {r}:1 oltre il limite di {max}:1.', { r: Math.round(payload / Math.max(1, compressedSize)), max: L.maxRatio }), 'archivio (bsdtar)'); return { limit: true, produced: stdout.length }; }
   return { files, status: r.status, produced: stdout.length };
 }
 
@@ -416,9 +417,9 @@ async function systemExtract(buffer, typeId, filePath, passwords = [], budget = 
     if (t.sevenZip) {
       const ls = sevenZipList(t.sevenZip, src, '');
       if (ls) {
-        if (budget.files + ls.files > L.maxFiles) { budget.trip('files', `L'archivio dichiara ${ls.files} file (limite ${L.maxFiles}).`, `archivio ${typeId}`); return LIMIT(); }
+        if (budget.files + ls.files > L.maxFiles) { budget.trip('files', msg('L\'archivio dichiara {n} file (limite {max}).', { n: ls.files, max: L.maxFiles }), msg('archivio {id}', { id: typeId })); return LIMIT(); }
         if (ls.total > budget.remaining() || (ls.total > L.ratioMinBytes && ls.total / Math.max(1, buffer.length) > L.maxRatio)) {
-          budget.trip(ls.total > budget.remaining() ? 'total' : 'ratio', `L'archivio dichiara ${limits.fmt(ls.total)} di dati decompressi da ${limits.fmt(buffer.length)}.`, `archivio ${typeId}`);
+          budget.trip(ls.total > budget.remaining() ? 'total' : 'ratio', msg('L\'archivio dichiara {total} di dati decompressi da {size}.', { total: limits.fmt(ls.total), size: limits.fmt(buffer.length) }), msg('archivio {id}', { id: typeId }));
           return LIMIT();
         }
       }
@@ -447,10 +448,10 @@ async function systemExtract(buffer, typeId, filePath, passwords = [], budget = 
       const w = await runWatched(a.cmd, a.args, outDir, { maxBytes: diskCap, maxFiles: L.maxFiles - budget.files, timeoutMs: big.timeout });
       peak = Math.max(peak, w.peak);
       if (w.over && w.over.kind === 'bytes') {
-        budget.trip(diskCap < budget.remaining() ? 'ratio' : 'total', `Estrazione interrotta: oltre ${limits.fmt(diskCap)} decompressi da ${limits.fmt(buffer.length)} (${a.name}).`, `archivio ${typeId}`);
+        budget.trip(diskCap < budget.remaining() ? 'ratio' : 'total', msg('Estrazione interrotta: oltre {cap} decompressi da {size} ({name}).', { cap: limits.fmt(diskCap), size: limits.fmt(buffer.length), name: a.name }), msg('archivio {id}', { id: typeId }));
         return LIMIT({ diskBytes: peak });
       }
-      if (w.over && w.over.kind === 'files') { budget.trip('files', `Estrazione interrotta: oltre ${L.maxFiles} file (${a.name}).`, `archivio ${typeId}`); return LIMIT({ diskBytes: peak }); }
+      if (w.over && w.over.kind === 'files') { budget.trip('files', msg('Estrazione interrotta: oltre {n} file ({name}).', { n: L.maxFiles, name: a.name }), msg('archivio {id}', { id: typeId })); return LIMIT({ diskBytes: peak }); }
       if (w.over && w.over.kind === 'timeout') continue;
       const trial = new limits.Budget(L);
       trial.totalBytes = budget.totalBytes; trial.files = budget.files;

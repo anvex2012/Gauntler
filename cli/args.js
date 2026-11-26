@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { t } = require('../core/i18n');
 /**
  * Minimal argument parser.
  * spec: { name: { alias: 'x', type: 'bool'|'string'|'number'|'list', default } }
@@ -37,15 +38,15 @@ function parse(argv, spec) {
       name = byAlias[letters];
     }
     const s = spec[name];
-    if (!s) throw new UsageError(`Opzione sconosciuta: ${a}`);
+    if (!s) throw new UsageError(t('Opzione sconosciuta: {opt}', { opt: a }));
     if (s.type === 'bool') { out[name] = val === undefined ? true : !/^(false|0|no)$/i.test(val); continue; }
     if (val === undefined) {
       val = argv[++i];
-      if (val === undefined) throw new UsageError(`Manca il valore per ${a}`);
+      if (val === undefined) throw new UsageError(t('Manca il valore per {opt}', { opt: a }));
     }
     if (s.type === 'number') {
       const n = Number(val);
-      if (!Number.isFinite(n)) throw new UsageError(`${a} richiede un numero`);
+      if (!Number.isFinite(n)) throw new UsageError(t('{opt} richiede un numero', { opt: a }));
       out[name] = n;
     } else if (s.type === 'list') out[name].push(...String(val).split(',').map((x) => x.trim()).filter(Boolean));
     else out[name] = val;
@@ -59,7 +60,7 @@ class UsageError extends Error {}
 function parseSize(v) {
   if (v == null) return null;
   const m = String(v).trim().match(/^(\d+(?:\.\d+)?)\s*([kmgt]?)b?$/i);
-  if (!m) throw new UsageError(`Dimensione non valida: ${v} (esempi: 500k, 10M, 2G)`);
+  if (!m) throw new UsageError(t('Dimensione non valida: {v} (esempi: 500k, 10M, 2G)', { v }));
   return Math.round(parseFloat(m[1]) * 1024 ** ' kmgt'.indexOf((m[2] || ' ').toLowerCase()));
 }
 

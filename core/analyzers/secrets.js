@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const { mask, findAll, strEntropy, truncate, isDoc } = require('../utils');
 
 // Patterns inspired by gitleaks / trufflehog / detect-secrets. group = which capture group is the secret
@@ -124,7 +125,7 @@ const SENSITIVE_NAMES = [
 module.exports = {
   id: 'secrets',
   name: 'Password & segreti esposti',
-  description: `${PATTERNS.length} rilevatori (stile gitleaks/trufflehog) per password, chiavi API, token, chiavi private, hash di password e credenziali — applicati a ogni riga, inclusi i contenuti decodificati, più il rilevamento di stringhe casuali ad alta entropia.`,
+  description: msg('{n} rilevatori (stile gitleaks/trufflehog) per password, chiavi API, token, chiavi private, hash di password e credenziali — applicati a ogni riga, inclusi i contenuti decodificati, più il rilevamento di stringhe casuali ad alta entropia.', { n: PATTERNS.length }),
   weight: 2,
   textual: true,
   applies: () => true,
@@ -181,14 +182,14 @@ module.exports = {
     const out = [];
     const doc = isDoc(ctx.name);
     for (const [re, label, sev] of SENSITIVE_NAMES) {
-      if (re.test(ctx.name)) out.push({ severity: sev, title: label, detail: `Il nome "${ctx.name}" indica un file che contiene credenziali.` });
+      if (re.test(ctx.name)) out.push({ severity: sev, title: label, detail: msg('Il nome "{name}" indica un file che contiene credenziali.', { name: ctx.name }) });
     }
     for (const f of st.found.values()) {
       const generic = ['password_assign', 'password_env', 'password_natural'].includes(f.id);
       out.push({
         severity: doc && generic ? 'low' : f.sev,
         title: f.name,
-        detail: `Credenziale in chiaro${f.locs.length > 1 ? `, ripetuta ${f.locs.length} volte` : ''}. Va revocata/cambiata se il file è stato condiviso.`,
+        detail: f.locs.length > 1 ? msg('Credenziale in chiaro, ripetuta {n} volte. Va revocata/cambiata se il file è stato condiviso.', { n: f.locs.length }) : 'Credenziale in chiaro. Va revocata/cambiata se il file è stato condiviso.',
         evidence: [f.full ? f.val : mask(f.val)],
         loc: f.loc,
         locs: f.locs,
@@ -197,14 +198,14 @@ module.exports = {
     if (st.entropy.length) {
       out.push({
         severity: st.entropy.length > 10 ? 'medium' : 'low',
-        title: `Stringhe casuali ad alta entropia (${st.entropy.length})`,
+        title: msg('Stringhe casuali ad alta entropia ({n})', { n: st.entropy.length }),
         detail: 'Valori casuali tra virgolette che potrebbero essere chiavi o token non riconosciuti dai rilevatori specifici.',
         evidence: st.entropy.slice(0, 5).map((e) => mask(e.val)),
         loc: st.entropy[0].loc,
         locs: st.entropy.map((e) => e.loc),
       });
     }
-    const checks = PATTERNS.map(([id, name]) => ({ name: `Ricerca: ${name}`, ok: !st.counts[id], note: st.counts[id] ? `${st.counts[id]} trovati` : 'nessuno' }));
+    const checks = PATTERNS.map(([id, name]) => ({ name: msg('Ricerca: {name}', { name }), ok: !st.counts[id], note: st.counts[id] ? msg('{n} trovati', { n: st.counts[id] }) : 'nessuno' }));
     checks.push({ name: 'Nome del file sensibile', ok: !SENSITIVE_NAMES.some(([re]) => re.test(ctx.name)) });
     checks.push({ name: 'Stringhe casuali ad alta entropia (≥ 4.5 bit/carattere)', ok: !st.entropy.length, note: `${st.entropy.length}` });
     return { findings: out, checks, info: { 'Segreti unici trovati': st.found.size, 'Occorrenze totali': Object.values(st.counts).reduce((a, b) => a + b, 0), 'Stringhe ad alta entropia': st.entropy.length, 'Rilevatori': PATTERNS.length } };

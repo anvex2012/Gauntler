@@ -1,5 +1,7 @@
 // Creato da anvex2012
 'use strict';
+const i18n = require('../i18n');
+const { t } = i18n;
 /**
  * Gauntler CDR — Content Disarm & Reconstruction.
  *
@@ -73,7 +75,7 @@ async function sanitizeBuffer(buf, name, opts = {}) {
     } else if (['docx', 'xlsx', 'pptx', 'odf'].includes(type.id)) {
       const r = ooxml.disarm(buf, { keepMetadata: opts.keepMetadata }); out = r.output; result.actions.push(...r.actions);
       outExt = ooxml.SAFE_EXT[ext] || ext || { docx: 'docx', xlsx: 'xlsx', pptx: 'pptx', odf: 'odt' }[type.id];
-      if (outExt !== ext) result.actions.push(`Estensione cambiata da .${ext} a .${outExt} (documento senza macro)`);
+      if (outExt !== ext) result.actions.push(t('Estensione cambiata da .{a} a .{b} (documento senza macro)', { a: ext, b: outExt }));
     } else if (type.id === 'ole') {
       if (['msi', 'msp', 'mst'].includes(ext)) return block('Pacchetto di installazione Windows (MSI): contiene programmi, non può essere disarmato');
       const r = ole.disarm(buf); out = r.output; result.actions.push(...r.actions);
@@ -96,19 +98,19 @@ async function sanitizeBuffer(buf, name, opts = {}) {
       if (type.id === 'gzip') { result.outName = safeName(r.innerName ? `${splitName(r.innerName).stem}.safe.${outExt}` : `${stem}.safe.${outExt}`); }
     } else if (CODE_TYPES.has(type.id) || CODE_EXT.has(ext) || type.family === 'script' || type.family === 'executable') {
       // Programs and scripts: cannot be disarmed without breaking them
-      if (opts.strict) return block(`${type.label}: codice eseguibile, bloccato in modalità rigorosa`);
+      if (opts.strict) return block(t('{label}: codice eseguibile, bloccato in modalità rigorosa', { label: type.label }));
       const rep = await core.scanBuffer(buf, name, scanOpts);
       const j = judge(rep);
       result.before = { score: rep.overall.score, verdict: rep.overall.verdict };
-      if (!j.safe || rep.overall.score < 90) return block(`${type.label}: codice che non può essere disarmato e l'analisi ha trovato problemi (${rep.overall.score}/100)`, { blocking: j.blocking.slice(0, 8).map((f) => `[${f.category}] ${f.title}`) });
-      return Object.assign(result, { status: 'verified', output: buf, outName: safeName(`${stem}.verified${ext ? '.' + ext : ''}`), actions: ['Codice eseguibile: nessun disarmo possibile, analisi senza minacce note'], after: { score: rep.overall.score, verdict: rep.overall.verdict } });
+      if (!j.safe || rep.overall.score < 90) return block(t('{label}: codice che non può essere disarmato e l\'analisi ha trovato problemi ({score}/100)', { label: type.label, score: rep.overall.score }), { blocking: j.blocking.slice(0, 8).map((f) => `[${f.category}] ${f.title}`) });
+      return Object.assign(result, { status: 'verified', output: buf, outName: safeName(`${stem}.verified${ext ? '.' + ext : ''}`), actions: [t('Codice eseguibile: nessun disarmo possibile, analisi senza minacce note')], after: { score: rep.overall.score, verdict: rep.overall.verdict } });
     } else if (type.family === 'text' || type.id === 'json' || type.id === 'eml' || type.id === 'text') {
       const r = C.text(buf, { csv: ['csv', 'tsv'].includes(ext) }); out = r.output; result.actions.push(...r.actions);
     } else {
       out = buf; // media and other data formats: no active content model, verified below
     }
   } catch (e) {
-    return block(`Impossibile disarmare il file: ${e.message}`);
+    return block(t('Impossibile disarmare il file: {msg}', { msg: t(e.message) }));
   }
   if (!result.outName) result.outName = safeName(`${stem}.safe.${outExt}`);
   result.output = out;
@@ -132,12 +134,12 @@ async function sanitizeArchive(buf, typeId, name, opts, depth) {
   const budget = new limits.Budget(opts.limits);
   if (typeId === 'zip') {
     const z = readZip(buf, { maxEntries: budget.limits.maxFiles + 1 });
-    if (z.truncated) return { ok: false, reason: `Zip bomb (più di ${budget.limits.maxFiles} voci)` };
+    if (z.truncated) return { ok: false, reason: t('Zip bomb (più di {n} voci)', { n: budget.limits.maxFiles }) };
     for (const e of z.entries) {
       if (e.name.endsWith('/')) continue;
-      if (e.encrypted) { actions.push(`Rimosso (cifrato, non ispezionabile): ${e.name}`); continue; }
+      if (e.encrypted) { actions.push(t('Rimosso (cifrato, non ispezionabile): {name}', { name: e.name })); continue; }
       const r = extract(buf, e, opts.passwords || [], { budget });
-      if (r.limit) return { ok: false, reason: `Zip bomb: ${budget.exceeded.detail}` };
+      if (r.limit) return { ok: false, reason: t('Zip bomb: {d}', { d: budget.exceeded.detail }) };
       if (!r.data) { actions.push(`Rimosso (illeggibile): ${e.name}`); continue; }
       if (e.usize > 0 && r.data.length / Math.max(1, e.csize) > 1000 && r.data.length > 100 * 1024 * 1024) return { ok: false, reason: 'Zip bomb' };
       files.push({ name: e.name, data: r.data });
@@ -150,17 +152,17 @@ async function sanitizeArchive(buf, typeId, name, opts, depth) {
   } else if (typeId === 'gzip') {
     let inner;
     const g = limits.gunzip(budget, buf, name);
-    if (g.limit) return { ok: false, reason: `Bomba di decompressione: ${budget.exceeded.detail}` };
+    if (g.limit) return { ok: false, reason: t('Bomba di decompressione: {d}', { d: budget.exceeded.detail }) };
     if (!g.data) return { ok: false, reason: 'GZIP illeggibile: ' + (g.error && g.error.message) };
     inner = g.data;
     const innerName = (buf[3] & 8) ? buf.toString('latin1', 10, buf.indexOf(0, 10)) : name.replace(/\.(gz|tgz)$/i, (m) => (m === '.tgz' ? '.tar' : ''));
     const r = await sanitizeBuffer(inner, innerName, { ...opts, depth: depth + 1 });
-    if (r.status === 'blocked') return { ok: false, reason: `Contenuto bloccato: ${r.reason}`, children: [summary(r)] };
-    return { ok: true, output: r.output, actions: [`Estratto da GZIP: ${innerName}`, ...r.actions], children: [summary(r)], innerName: r.outName };
+    if (r.status === 'blocked') return { ok: false, reason: t('Contenuto bloccato: {r}', { r: r.reason }), children: [summary(r)] };
+    return { ok: true, output: r.output, actions: [t('Estratto da GZIP: {name}', { name: innerName }), ...r.actions], children: [summary(r)], innerName: r.outName };
   } else {
     const r = await systemExtract(buf, typeId, null, opts.passwords || [], budget);
-    if (r.limit) return { ok: false, reason: `Bomba di decompressione: ${budget.exceeded.detail}` };
-    if (!r.files.length) return { ok: false, reason: `Archivio ${typeId} non estraibile (${r.error || 'serve 7-Zip'})` };
+    if (r.limit) return { ok: false, reason: t('Bomba di decompressione: {d}', { d: budget.exceeded.detail }) };
+    if (!r.files.length) return { ok: false, reason: t('Archivio {id} non estraibile ({err})', { id: typeId, err: r.error || 'serve 7-Zip' }) };
     files.push(...r.files);
   }
   const outFiles = [];
@@ -168,7 +170,7 @@ async function sanitizeArchive(buf, typeId, name, opts, depth) {
   const used = new Set();
   for (const f of files) {
     const clean = safeName(f.name);
-    if (clean !== f.name.replace(/\\/g, '/')) actions.push(`Nome ripulito: ${f.name} → ${clean}`);
+    if (clean !== f.name.replace(/\\/g, '/')) actions.push(t('Nome ripulito: {a} → {b}', { a: f.name, b: clean }));
     const r = await sanitizeBuffer(f.data, clean, { ...opts, depth: depth + 1 });
     children.push(summary(r));
     if (r.status === 'blocked') { actions.push(`Rimosso ${clean}: ${r.reason}`); continue; }
@@ -176,7 +178,7 @@ async function sanitizeArchive(buf, typeId, name, opts, depth) {
     let outName = (dir === '.' ? '' : dir + '/') + (r.status === 'clean' ? path.posix.basename(clean) : r.outName.split('/').pop());
     while (used.has(outName)) outName = outName.replace(/(\.[^.]*)?$/, '_1$1');
     used.add(outName);
-    if (r.status === 'sanitized') actions.push(`Disarmato ${clean}: ${r.actions.length} interventi`);
+    if (r.status === 'sanitized') actions.push(t('Disarmato {name}: {n} interventi', { name: clean, n: r.actions.length }));
     outFiles.push({ name: outName, data: r.output });
   }
   if (!outFiles.length) return { ok: false, reason: 'Nessun file sicuro nell\'archivio', children };
@@ -193,7 +195,7 @@ const summary = (r) => ({ name: r.name, status: r.status, outName: r.outName, re
 async function sanitizeFile(file, opts = {}) {
   const abs = path.resolve(file);
   const buf = fs.readFileSync(abs);
-  const r = await sanitizeBuffer(buf, path.basename(abs), opts);
+  const r = localizeResult(await sanitizeBuffer(buf, path.basename(abs), opts));
   r.path = abs;
   if (r.status === 'blocked' || !r.output || opts.dryRun) return r;
   let dest = opts.out ? path.resolve(opts.out) : path.join(opts.outDir ? path.resolve(opts.outDir) : path.dirname(abs), path.basename(r.outName));
@@ -203,7 +205,7 @@ async function sanitizeFile(file, opts = {}) {
     r.quarantineId = q.id;
     dest = path.join(path.dirname(abs), path.basename(r.outName).replace(/\.(safe|verified)\./, '.'));
   }
-  if (path.resolve(dest) === abs && !opts.inPlace) throw new Error('Il file di destinazione coincide con l\'originale (usa --in-place)');
+  if (path.resolve(dest) === abs && !opts.inPlace) throw new Error(t('Il file di destinazione coincide con l\'originale (usa --in-place)'));
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const tmp = dest + '.gauntler-tmp-' + process.pid;
   fs.writeFileSync(tmp, r.output, { mode: 0o644 });
@@ -214,4 +216,16 @@ async function sanitizeFile(file, opts = {}) {
   return r;
 }
 
-module.exports = { sanitizeBuffer, sanitizeFile, judge, safeName };
+/** Messages in the current language (the static ones are written in Italian in the code above) */
+function localizeResult(r) {
+  if (!r || typeof r !== 'object') return r;
+  const tr = (x) => (typeof x === 'string' ? i18n.translate(x) : x);
+  if (Array.isArray(r.actions)) r.actions = r.actions.map(tr);
+  if (Array.isArray(r.blocking)) r.blocking = r.blocking.map(tr);
+  if (r.reason) r.reason = tr(r.reason);
+  if (Array.isArray(r.children)) r.children.forEach(localizeResult);
+  return r;
+}
+const sanitizeBufferLocalized = async (...a) => localizeResult(await sanitizeBuffer(...a));
+
+module.exports = { sanitizeBuffer: sanitizeBufferLocalized, sanitizeFile, judge, safeName };

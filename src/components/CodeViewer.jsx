@@ -1,8 +1,9 @@
 // Creato da anvex2012
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { VirtualList, SevBadge } from './ui.jsx';
+import { t } from '../i18n.js';
 import Icon from './Icon.jsx';
-import { SEV_RANK, fmtNum } from '../lib.js';
+import { SEV_RANK, SEVERITY, fmtNum } from '../lib.js';
 import { codeRow, useSettings } from '../settings.js';
 
 const useRow = () => codeRow(useSettings().settings);
@@ -33,13 +34,13 @@ function Heatmap({ total, marks, onJump, view }) {
     }
   }, [total, marks, view]);
   return (
-    <canvas ref={ref} className="heatmap" title="Mappa del file: ogni tacca è una riga segnalata. Clicca per saltare."
+    <canvas ref={ref} className="heatmap" title={t('Mappa del file: ogni tacca è una riga segnalata. Clicca per saltare.')}
       onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onJump(Math.floor(((e.clientY - r.top) / r.height) * total)); }} />
   );
 }
 
 function TagList({ ann }) {
-  if (!ann) return <p className="muted small">Seleziona una riga evidenziata per vedere la spiegazione.</p>;
+  if (!ann) return <p className="muted small">{t('Seleziona una riga evidenziata per vedere la spiegazione.')}</p>;
   const tags = [...ann.tags].sort((a, b) => SEV_RANK[a.sev] - SEV_RANK[b.sev]);
   return (
     <div className="taglist">
@@ -61,7 +62,7 @@ export function CodeViewer({ r, jump }) {
   const ROW = useRow();
   const sources = useMemo(() => {
     const s = [];
-    if (r.source != null) s.push({ key: '', label: `${r.file.name} (file principale)`, text: r.source });
+    if (r.source != null) s.push({ key: '', label: `${r.file.name} ${t('(file principale)')}`, text: r.source });
     for (const e of r.extracted || []) if (e.text != null) s.push({ key: e.label, label: e.label, text: e.text, kind: e.kind });
     return s;
   }, [r]);
@@ -114,29 +115,29 @@ export function CodeViewer({ r, jump }) {
   const marks = useMemo(() => visibleAnn.map((a) => ({ i: rows ? rows.indexOf(a.line - 1) : a.line - 1, sev: a.sev })), [visibleAnn, rows]);
   const counts = useMemo(() => { const c = {}; for (const a of ann.values()) c[a.sev] = (c[a.sev] || 0) + 1; return c; }, [ann]);
   if (!sources.length) {
-    return <p className="muted">Il testo non è disponibile in questa vista (file binario o troppo grande). Le righe segnalate sono comunque elencate nella scheda "Problemi".</p>;
+    return <p className="muted">{t('Il testo non è disponibile in questa vista (file binario o troppo grande). Le righe segnalate sono comunque elencate nella scheda "Problemi".')}</p>;
   }
 
   return (
     <div className="codeview">
       <div className="code-toolbar">
-        <select value={src?.key} onChange={(e) => { setSrcKey(e.target.value); setSel(null); }} className="select" title="Contenuto da visualizzare">
+        <select value={src?.key} onChange={(e) => { setSrcKey(e.target.value); setSel(null); }} className="select" title={t('Contenuto da visualizzare')}>
           {sources.map((s) => {
             const n = (r.lines || []).filter((a) => (a.source || '') === s.key && a.sev !== 'info').length;
-            return <option key={s.key} value={s.key}>{s.label}{n ? ` — ${n} righe segnalate` : ''}</option>;
+            return <option key={s.key} value={s.key}>{s.label}{n ? ' — ' + t('{n} righe segnalate', { n }) : ''}</option>;
           })}
         </select>
         <div className="seg">
           {['critical', 'high', 'medium', 'low', 'info'].map((s) => (
-            <button key={s} className={SEV_RANK[s] <= SEV_RANK[minSev] ? 'on' : ''} onClick={() => setMinSev(s)} title={`Mostra fino al livello ${s}`}>
+            <button key={s} className={SEV_RANK[s] <= SEV_RANK[minSev] ? 'on' : ''} onClick={() => setMinSev(s)} title={t('Mostra fino al livello {s}', { s: t(SEVERITY[s]?.label || s) })}>
               <i style={{ background: SEV_VAR[s] }} />{counts[s] || 0}
             </button>
           ))}
         </div>
-        <label className="toggle"><input type="checkbox" checked={onlyFlagged} onChange={(e) => setOnlyFlagged(e.target.checked)} /> Solo righe segnalate</label>
-        <button className="btn-mini" onClick={() => step(-1)} title="Segnalazione precedente" aria-label="Segnalazione precedente"><Icon name="chevronUp" /></button>
-        <button className="btn-mini" onClick={() => step(1)} title="Segnalazione successiva" aria-label="Segnalazione successiva"><Icon name="chevronDown" /></button>
-        <input className="search sm" placeholder="Cerca nel testo… (Invio)" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && find(e.shiftKey ? -1 : 1)} />
+        <label className="toggle"><input type="checkbox" checked={onlyFlagged} onChange={(e) => setOnlyFlagged(e.target.checked)} /> {t('Solo righe segnalate')}</label>
+        <button className="btn-mini" onClick={() => step(-1)} title={t('Segnalazione precedente')} aria-label={t('Segnalazione precedente')}><Icon name="chevronUp" /></button>
+        <button className="btn-mini" onClick={() => step(1)} title={t('Segnalazione successiva')} aria-label={t('Segnalazione successiva')}><Icon name="chevronDown" /></button>
+        <input className="search sm" placeholder={t('Cerca nel testo… (Invio)')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && find(e.shiftKey ? -1 : 1)} />
         <span className="muted small">{fmtNum(lines.length)} righe</span>
       </div>
       <div className="code-body">
@@ -208,14 +209,14 @@ export function StringsViewer({ r }) {
     }
     return out;
   }, [strs, flagged, q, onlyFlagged, enc]);
-  if (!strs.length) return <p className="muted">Nessuna stringa disponibile.</p>;
+  if (!strs.length) return <p className="muted">{t('Nessuna stringa disponibile.')}</p>;
   const cur = sel != null ? flagged.get(sel) : null;
   return (
     <div className="codeview">
       <div className="code-toolbar">
-        <input className="search sm" placeholder="Filtra stringhe…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="select" value={enc} onChange={(e) => setEnc(e.target.value)}><option value="all">ASCII + UTF-16</option><option value="a">Solo ASCII</option><option value="u">Solo UTF-16</option></select>
-        <label className="toggle"><input type="checkbox" checked={onlyFlagged} onChange={(e) => setOnlyFlagged(e.target.checked)} /> Solo stringhe segnalate ({fmtNum(flagged.size)})</label>
+        <input className="search sm" placeholder={t('Filtra stringhe…')} value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className="select" value={enc} onChange={(e) => setEnc(e.target.value)}><option value="all">{t('ASCII + UTF-16')}</option><option value="a">{t('Solo ASCII')}</option><option value="u">{t('Solo UTF-16')}</option></select>
+        <label className="toggle"><input type="checkbox" checked={onlyFlagged} onChange={(e) => setOnlyFlagged(e.target.checked)} /> {t('Solo stringhe segnalate ({n})', { n: fmtNum(flagged.size) })}</label>
         <span className="muted small">{fmtNum(idx.length)} di {fmtNum(strs.length)} stringhe</span>
       </div>
       <div className="code-body">

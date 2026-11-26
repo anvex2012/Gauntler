@@ -1,4 +1,6 @@
 // Creato da anvex2012
+import { t, locale } from './i18n.js';
+
 export const LEVEL_COLOR = { safe: 'var(--safe)', low: 'var(--low)', medium: 'var(--medium)', high: 'var(--high)', critical: 'var(--critical)' };
 export const SEV_RANK = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
@@ -44,13 +46,13 @@ export function formatBytes(n) {
   do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
   return n.toFixed(1) + ' ' + u[i];
 }
-export const fmtNum = (n) => (typeof n === 'number' ? n.toLocaleString('it-IT') : n);
+export const fmtNum = (n) => (typeof n === 'number' ? n.toLocaleString(locale()) : n);
 export const fmtMs = (ms) => (ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`);
 export function fmtLoc(loc) {
   if (!loc) return '';
   const p = [];
   if (loc.source) p.push(loc.source);
-  if (loc.line != null) p.push(`riga ${loc.line}`);
+  if (loc.line != null) p.push(t('riga {n}', { n: loc.line }));
   else if (loc.offset != null) p.push(`offset 0x${loc.offset.toString(16)}`);
   return p.join(' · ');
 }

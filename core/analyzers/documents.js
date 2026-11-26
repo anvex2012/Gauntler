@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const { countMatches, truncate } = require('../utils');
 
 const PDF_KW = {
@@ -20,7 +21,7 @@ function macroFinding(ctx, out, info, checks) {
   checks.push({ name: 'Macro con avvio automatico', ok: !autoexec }, { name: 'Macro che eseguono comandi', ok: !shell }, { name: 'Macro che chiamano API di Windows', ok: !declares });
   out.push({
     severity: sev,
-    title: `Il documento contiene macro VBA (${ctx.macros.length || '?'} moduli)`,
+    title: msg('Il documento contiene macro VBA ({n} moduli)', { n: ctx.macros.length || '?' }),
     detail: autoexec && shell ? 'Macro che si avviano da sole ed eseguono comandi: comportamento tipico dei malware.' : 'Le macro possono eseguire codice. Non abilitarle se non sei sicuro della provenienza. Il codice completo è nella scheda "Codice".',
     evidence: [autoexec && 'avvio automatico', shell && 'esecuzione comandi', declares && 'chiamate dirette a DLL di sistema'].filter(Boolean),
   });
@@ -41,7 +42,7 @@ function analyzePDF(ctx, out, info, checks) {
   });
   const js = c['/JavaScript'] + c['/JS'];
   const auto = c['/OpenAction'] + c['/AA'];
-  for (const [k, v] of Object.entries(c)) checks.push({ name: `Parola chiave PDF ${k}`, ok: !v || ['/URI', '/AcroForm', '/ObjStm'].includes(k), note: String(v) });
+  for (const [k, v] of Object.entries(c)) checks.push({ name: msg('Parola chiave PDF {k}', { k }), ok: !v || ['/URI', '/AcroForm', '/ObjStm'].includes(k), note: String(v) });
   if (js && auto) out.push({ severity: 'high', title: 'JavaScript eseguito all\'apertura del PDF', detail: 'Il PDF esegue codice automaticamente quando viene aperto.' });
   else if (js) out.push({ severity: 'medium', title: 'PDF contiene JavaScript', detail: 'Codice eseguibile dentro il documento (visibile nella scheda "Codice").' });
   if (c['/Launch']) out.push({ severity: 'high', title: 'PDF può avviare programmi', detail: 'L\'azione /Launch può eseguire comandi sul computer.' });
@@ -54,11 +55,11 @@ function analyzePDF(ctx, out, info, checks) {
   if (c['/SubmitForm'] && c['/AcroForm']) out.push({ severity: 'low', title: 'Modulo che invia dati', detail: 'Il PDF può inviare i dati inseriti a un server.' });
   if (hexNames > 3) out.push({ severity: 'high', title: 'Nomi PDF offuscati', detail: 'Parole chiave codificate (#xx) per eludere gli scanner.' });
   if (c['/Encrypt']) out.push({ severity: 'info', title: 'PDF cifrato', detail: 'Il contenuto è cifrato: alcuni flussi potrebbero non essere leggibili.' });
-  if (st.failed) out.push({ severity: 'low', title: `Flussi non decodificabili (${st.failed})`, detail: 'Flussi corrotti o con filtri insoliti: possibile tecnica di elusione.' });
+  if (st.failed) out.push({ severity: 'low', title: msg('Flussi non decodificabili ({n})', { n: st.failed }), detail: 'Flussi corrotti o con filtri insoliti: possibile tecnica di elusione.' });
   if (info['Aggiornamenti incrementali'] > 3) out.push({ severity: 'low', title: 'Molte revisioni incrementali', detail: 'Il PDF è stato modificato più volte dopo la creazione (contenuti nascosti nelle revisioni precedenti).' });
   for (const e of ctx.extracted.filter((x) => x.kind === 'js')) {
     if (/(eval|unescape|String\.fromCharCode|app\.launchURL|this\.exportDataObject|util\.printf|Collab\.(collectEmailInfo|getIcon)|media\.newPlayer|spell\.customDictionaryOpen|getAnnots)/.test(e.text)) {
-      out.push({ severity: 'high', title: 'JavaScript PDF pericoloso', detail: `Funzioni usate da exploit PDF in "${e.label}".`, evidence: [truncate(e.text.trim(), 140)], loc: { source: e.label, line: 1 } });
+      out.push({ severity: 'high', title: 'JavaScript PDF pericoloso', detail: msg('Funzioni usate da exploit PDF in "{label}".', { label: e.label }), evidence: [truncate(e.text.trim(), 140)], loc: { source: e.label, line: 1 } });
     }
   }
 }
@@ -89,7 +90,7 @@ function analyzeOOXML(ctx, out, info, checks) {
   if (tmpl.length) out.push({ severity: 'high', title: 'Template remoto (template injection)', detail: 'Il documento scarica contenuti da Internet all\'apertura.', evidence: tmpl.map((t) => truncate(t, 100)) });
   if (follina.length) out.push({ severity: 'critical', title: 'Exploit protocollo Office (es. Follina)', detail: 'Riferimenti a protocolli sfruttati da vulnerabilità note.', evidence: follina });
   if (dde.length) out.push({ severity: 'high', title: 'Campo DDE', detail: 'Comandi eseguiti tramite Dynamic Data Exchange.', evidence: dde });
-  if (ext.size && !tmpl.length) out.push({ severity: 'info', title: `Collegamenti esterni (${ext.size})`, detail: 'Link a risorse esterne.', evidence: [...ext].slice(0, 10).map((t) => truncate(t, 100)) });
+  if (ext.size && !tmpl.length) out.push({ severity: 'info', title: msg('Collegamenti esterni ({n})', { n: ext.size }), detail: 'Link a risorse esterne.', evidence: [...ext].slice(0, 10).map((t) => truncate(t, 100)) });
 }
 
 function analyzeOLE(ctx, out, info, checks) {
@@ -111,7 +112,7 @@ function analyzeRTF(ctx, out, info, checks) {
   const objs = countMatches(t, /\\objdata/gi);
   info['Oggetti incorporati'] = objs;
   checks.push({ name: 'Nessun oggetto incorporato', ok: !objs });
-  if (objs) out.push({ severity: 'medium', title: `Oggetti incorporati in RTF (${objs})`, detail: 'Il documento RTF contiene oggetti (analizzati nella scheda "Contenuti").' });
+  if (objs) out.push({ severity: 'medium', title: msg('Oggetti incorporati in RTF ({n})', { n: objs }), detail: 'Il documento RTF contiene oggetti (analizzati nella scheda "Contenuti").' });
   if (/\\objupdate/i.test(t)) out.push({ severity: 'high', title: 'Aggiornamento automatico oggetti RTF', detail: 'Gli oggetti si caricano da soli all\'apertura.' });
   if (/0002ce02|equation\.3/i.test(t)) out.push({ severity: 'critical', title: 'Exploit Equation Editor in RTF', detail: 'Tecnica di CVE-2017-11882 / CVE-2018-0802.' });
   if (/\\\*\\template\s+https?:/i.test(t)) out.push({ severity: 'high', title: 'Template RTF remoto', detail: 'Carica contenuti da Internet.' });
@@ -127,7 +128,7 @@ function analyzeLNK(ctx, out, info, checks) {
   checks.push({ name: 'Il collegamento non lancia interpreti di comandi', ok: !m });
   if (m) out.push({ severity: /powershell|mshta|certutil|bitsadmin|curl/i.test(m[1]) ? 'critical' : 'high', title: 'Collegamento che esegue comandi', detail: 'Il file .lnk lancia un interprete di comandi.', evidence: [truncate(m[0], 300)] });
   else out.push({ severity: 'low', title: 'Collegamento Windows', detail: 'Verifica la destinazione del collegamento prima di aprirlo.' });
-  if (ctx.size > 100 * 1024) out.push({ severity: 'medium', title: 'Collegamento insolitamente grande', detail: `${Math.round(ctx.size / 1024)} KB: un .lnk normale pesa pochi KB (possibile payload incorporato).` });
+  if (ctx.size > 100 * 1024) out.push({ severity: 'medium', title: 'Collegamento insolitamente grande', detail: msg('{n} KB: un .lnk normale pesa pochi KB (possibile payload incorporato).', { n: Math.round(ctx.size / 1024) }) });
 }
 
 module.exports = {

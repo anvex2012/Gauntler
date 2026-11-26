@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const { TOKENS, GROUPS } = require('../data/tokens');
 const { truncate, isDoc } = require('../utils');
 const BIN_SKIP = new Set(['obf', 'web', 'social', 'deser']);
@@ -31,7 +32,7 @@ function sevFor(tok, ctx, unit) {
 module.exports = {
   id: 'lines',
   name: 'Analisi riga per riga',
-  description: `Ogni riga e ogni parola (o, nei binari, ogni stringa estratta) viene confrontata con ${TOKENS.length} indicatori in ${Object.keys(GROUPS).length} categorie (esecuzione, rete, persistenza, elusione, credenziali, iniezione, distruzione…), con spiegazione per ogni riga segnalata. Rileva anche caratteri invisibili, omoglifi e attacchi "Trojan Source".`,
+  description: msg('Ogni riga e ogni parola (o, nei binari, ogni stringa estratta) viene confrontata con {n} indicatori in {g} categorie (esecuzione, rete, persistenza, elusione, credenziali, iniezione, distruzione…), con spiegazione per ogni riga segnalata. Rileva anche caratteri invisibili, omoglifi e attacchi "Trojan Source".', { n: TOKENS.length, g: Object.keys(GROUPS).length }),
   weight: 1.5,
   textual: true,
   applies: () => true,
@@ -116,19 +117,19 @@ module.exports = {
       if (r.sev === 'info') continue;
       out.push({
         severity: r.sev,
-        title: `${r.tok[4]} — ${r.n} ${r.n === 1 ? 'riga' : 'righe'}`,
-        detail: `${r.tok[5]} [${GROUPS[r.tok[3]]}]`,
+        title: msg(r.n === 1 ? '{label} — {n} riga' : '{label} — {n} righe', { label: r.tok[4], n: r.n }),
+        detail: msg('{desc} [{group}]', { desc: r.tok[5], group: GROUPS[r.tok[3]] }),
         evidence: r.samples,
         loc: r.locs[0],
         locs: r.locs,
       });
     }
     for (const s of Object.values(st.special)) {
-      out.push({ severity: s.sev, title: `${s.label} — ${s.locs.length}`, detail: s.desc, evidence: s.samples, loc: s.locs[0], locs: s.locs });
+      out.push({ severity: s.sev, title: msg('{label} — {n}', { label: s.label, n: s.locs.length }), detail: s.desc, evidence: s.samples, loc: s.locs[0], locs: s.locs });
     }
     const byGroup = {};
     for (const r of rows) byGroup[r.tok[3]] = (byGroup[r.tok[3]] || 0) + (r.sev === 'info' ? 0 : r.n);
-    const checks = Object.entries(GROUPS).map(([g, name]) => ({ name: `Indicatori di ${name.toLowerCase()}`, ok: !byGroup[g], note: `${byGroup[g] || 0} occorrenze` }));
+    const checks = Object.entries(GROUPS).map(([g, name]) => ({ name: msg('Indicatori di {g}', { g: name.toLowerCase() }), ok: !byGroup[g], note: msg('{n} occorrenze', { n: byGroup[g] || 0 }) }));
     checks.push(
       { name: 'Caratteri Trojan Source (bidi)', ok: !st.special.bidi },
       { name: 'Caratteri invisibili', ok: !st.special.zw },

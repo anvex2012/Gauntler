@@ -1,6 +1,8 @@
 // Creato da anvex2012
 'use strict';
 const path = require('path');
+const i18n = require('../core/i18n');
+const { t } = i18n;
 
 let useColor = process.stdout.isTTY && !process.env.NO_COLOR;
 const C = (code) => (s) => (useColor ? `\x1b[${code}m${s}\x1b[0m` : String(s));
@@ -9,7 +11,9 @@ const c = {
 };
 const setColor = (on) => { useColor = on; };
 const colorFor = (score) => (score >= 90 ? c.green : score >= 70 ? c.cyan : score >= 40 ? c.yellow : score >= 15 ? c.red : c.bgRed);
-const SEV = { critical: [c.bgRed, 'CRITICO'], high: [c.red, 'ALTO   '], medium: [c.yellow, 'MEDIO  '], low: [c.blue, 'BASSO  '], info: [c.dim, 'INFO   '] };
+const SEV_IT = { critical: [c.bgRed, 'CRITICO'], high: [c.red, 'ALTO'], medium: [c.yellow, 'MEDIO'], low: [c.blue, 'BASSO'], info: [c.dim, 'INFO'] };
+// Severity labels in the current language, padded to the same width
+const SEV = new Proxy(SEV_IT, { get: (o, k) => { if (!o[k]) return o[k]; const w = Math.max(...Object.values(o).map(([, l]) => t(l).length)); return [o[k][0], t(o[k][1]).padEnd(w)]; } });
 const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 const cols = () => process.stdout.columns || 100;
 const fmtBytes = (n) => { if (n < 1024) return n + ' B'; const u = ['KB', 'MB', 'GB', 'TB']; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 3); return n.toFixed(1) + ' ' + u[i]; };
@@ -40,7 +44,7 @@ class Progress {
     const rate = this.done / Math.max(1, el / 1000);
     const eta = this.done ? ((this.total - this.done) / Math.max(rate, 1e-6)) * 1000 : 0;
     const w = 26, n = Math.round((this.done / Math.max(1, this.total)) * w);
-    const head = `${c.cyan('█'.repeat(n))}${c.dim('░'.repeat(w - n))} ${this.done}/${this.total} ${c.dim(`· ${rate.toFixed(1)} file/s · ${fmtBytes(this.bytes)} · trascorsi ${fmtDur(el)}${this.done ? ' · fine tra ~' + fmtDur(eta) : ''}`)}`;
+    const head = `${c.cyan('█'.repeat(n))}${c.dim('░'.repeat(w - n))} ${this.done}/${this.total} ${c.dim(`· ${rate.toFixed(1)} file/s · ${fmtBytes(this.bytes)} · ${t('trascorsi {d}', { d: fmtDur(el) })}${this.done ? ' · ' + t('fine tra ~{d}', { d: fmtDur(eta) }) : ''}`)}`;
     const room = Math.max(10, (process.stderr.columns || 100) - strip(head).length - 3);
     const cur = this.current.length > room ? '…' + this.current.slice(-room + 1) : this.current;
     process.stderr.write(`\r${head} ${c.dim(cur)}\x1b[K`);
@@ -56,25 +60,26 @@ function printReport(r, opt = {}) {
   const out = [];
   const P = (s = '') => out.push(s);
   P('\n' + c.dim('─'.repeat(W)));
-  P(c.bold(r.file.name) + c.dim(`  ${r.file.type.label} · ${r.file.sizeHuman}${r.cached ? ' · dalla cache' : ''}`));
+  P(c.bold(r.file.name) + c.dim(`  ${r.file.type.label} · ${r.file.sizeHuman}${r.cached ? ' · ' + t('dalla cache') : ''}`));
   if (r.file.path) P(c.dim(r.file.path));
-  P(`\n  SICUREZZA GENERALE  ${colorFor(o.score)(c.bold(` ${o.score}/100 `))}  ${bar(o.score, 30)}  ${colorFor(o.score)(c.bold(o.verdict))}`);
+  P(`\n  ${t('SICUREZZA GENERALE')}  ${colorFor(o.score)(c.bold(` ${o.score}/100 `))}  ${bar(o.score, 30)}  ${colorFor(o.score)(c.bold(o.verdict))}`);
   P(`  ${o.advice}\n`);
   for (const k of r.categories) {
     if (!k.applicable) {
-      if (opt.verbose || k.skipped) P(`  ${c.dim(k.name.padEnd(32))} ${c.dim(k.skipped ? 'n/d — ' + k.reason : 'non applicabile')}`);
+      if (opt.verbose || k.skipped) P(`  ${c.dim(k.name.padEnd(32))} ${c.dim(k.skipped ? t('n/d — {r}', { r: k.reason }) : t('non applicabile'))}`);
       continue;
     }
     const issues = k.findings.filter((f) => f.severity !== 'info').length;
-    P(`  ${k.name.padEnd(32)} ${colorFor(k.score)(String(k.score).padStart(3) + '/100')}  ${bar(k.score)}  ${c.dim(issues ? issues + ' problemi' : '')}`);
+    P(`  ${k.name.padEnd(32)} ${colorFor(k.score)(String(k.score).padStart(3) + '/100')}  ${bar(k.score)}  ${c.dim(issues ? t('{n} problemi', { n: issues }) : '')}`);
   }
-  const t = r.totals;
-  P(c.dim(`\n  ${t.lines ? t.lines.toLocaleString('it-IT') + ' righe' : t.strings.toLocaleString('it-IT') + ' stringhe'} analizzate · ${t.checks} controlli (${t.checksFailed} non superati) · ${t.extracted} contenuti estratti · ${t.decoded} payload decodificati · ${t.children} file interni · ${fmtDur(r.durationMs)}`));
+  const tt = r.totals;
+  const L = i18n.locale();
+  P(c.dim(`\n  ${tt.lines ? t('{n} righe analizzate', { n: tt.lines.toLocaleString(L) }) : t('{n} stringhe analizzate', { n: tt.strings.toLocaleString(L) })} · ${t('{n} controlli ({f} non superati)', { n: tt.checks, f: tt.checksFailed })} · ${t('{n} contenuti estratti', { n: tt.extracted })} · ${t('{n} payload decodificati', { n: tt.decoded })} · ${t('{n} file interni', { n: tt.children })} · ${fmtDur(r.durationMs)}`));
   const minSev = opt.minSeverity || (opt.verbose ? 'info' : 'low');
   const shown = r.findings.filter((f) => SEV_ORDER[f.severity] <= SEV_ORDER[minSev]);
   const limit = opt.verbose || opt.all ? Infinity : 40;
   if (shown.length) {
-    P('\n  ' + c.bold('Problemi rilevati:'));
+    P('\n  ' + c.bold(t('Problemi rilevati:')));
     for (const f of shown.slice(0, limit)) {
       const [col, label] = SEV[f.severity];
       P(`  ${col(label)} ${f.title} ${c.dim('· ' + f.category + (f.where ? ' · ' + f.where : ''))}`);
@@ -82,13 +87,13 @@ function printReport(r, opt = {}) {
       if (f.evidence && f.evidence.length) P(`          ${c.magenta('→ ' + f.evidence.slice(0, opt.verbose ? 10 : 3).join('  |  '))}`);
       if (opt.ids) P(`          ${c.gray('id: ' + f.id)}`);
     }
-    if (shown.length > limit) P(c.dim(`  … altri ${shown.length - limit} (usa --all o --verbose)`));
-  } else P('\n  ' + c.green('✔ Nessun problema rilevato'));
-  if (r.suppressed && r.suppressed.length) P(c.dim(`  (${r.suppressed.length} segnalazioni nascoste dalle regole "suppress" della configurazione)`));
+    if (shown.length > limit) P(c.dim('  ' + t('… altri {n} (usa --all o --verbose)', { n: shown.length - limit })));
+  } else P('\n  ' + c.green('✔ ' + t('Nessun problema rilevato')));
+  if (r.suppressed && r.suppressed.length) P(c.dim('  ' + t('({n} segnalazioni nascoste dalle regole "suppress" della configurazione)', { n: r.suppressed.length })));
   if (opt.lines) {
     const ls = (r.lines || []).filter((l) => SEV_ORDER[l.sev] <= SEV_ORDER[minSev]);
     if (ls.length) {
-      P('\n  ' + c.bold(`Righe segnalate (${ls.length}):`));
+      P('\n  ' + c.bold(t('Righe segnalate ({n}):', { n: ls.length })));
       let src = null;
       for (const l of ls) {
         if ((l.source || '') !== src) { src = l.source || ''; P('\n  ' + c.cyan(src || r.file.name)); }
@@ -100,7 +105,7 @@ function printReport(r, opt = {}) {
     }
   }
   if (opt.checks) {
-    P('\n  ' + c.bold(`Controlli eseguiti (${r.totals.checks}):`));
+    P('\n  ' + c.bold(t('Controlli eseguiti ({n}):', { n: r.totals.checks })));
     for (const k of r.categories.filter((k) => k.checks && k.checks.length)) {
       const ok = k.checks.filter((x) => x.ok).length;
       P(`  ${c.cyan(k.name)} ${c.dim(`${ok}/${k.checks.length}`)}`);
@@ -108,17 +113,17 @@ function printReport(r, opt = {}) {
     }
   }
   if (r.reputation) {
-    P('\n  ' + c.bold('Reputazione online:'));
-    for (const x of r.reputation) P(`   ${x.service.padEnd(14)} ${x.skipped ? c.dim(x.skipped) : x.error ? c.yellow('errore: ' + x.error) : !x.found ? c.green('non presente') : x.service === 'VirusTotal' ? colorFor(x.malicious ? 10 : 95)(`${x.malicious}/${x.engines} rilevamenti`) + (x.label ? c.dim(' · ' + x.label) : '') : c.red('malware noto: ' + (x.signature || '?'))}`);
+    P('\n  ' + c.bold(t('Reputazione online:')));
+    for (const x of r.reputation) P(`   ${x.service.padEnd(14)} ${x.skipped ? c.dim(x.skipped) : x.error ? c.yellow(t('errore: {msg}', { msg: x.error })) : !x.found ? c.green(t('non presente')) : x.service === 'VirusTotal' ? colorFor(x.malicious ? 10 : 95)(t('{a}/{b} rilevamenti', { a: x.malicious, b: x.engines })) + (x.label ? c.dim(' · ' + x.label) : '') : c.red(t('malware noto: {sig}', { sig: x.signature || '?' }))}`);
   }
   if (r.children && r.children.length) {
-    P('\n  ' + c.bold(`File interni analizzati (${r.children.length}):`));
+    P('\n  ' + c.bold(t('File interni analizzati ({n}):', { n: r.children.length })));
     const ch = [...r.children].sort((a, b) => a.overall.score - b.overall.score);
     for (const k of ch.slice(0, opt.verbose ? Infinity : 30)) P(`   ${colorFor(k.overall.score)(String(k.overall.score).padStart(3))}  ${k.file.name} ${c.dim(k.file.type.label + (k.file.origin ? ' · ' + k.file.origin : ''))}`);
-    if (!opt.verbose && ch.length > 30) P(c.dim(`   … altri ${ch.length - 30}`));
+    if (!opt.verbose && ch.length > 30) P(c.dim('   ' + t('… altri {n}', { n: ch.length - 30 })));
   }
   if (opt.verbose) {
-    P('\n  ' + c.bold('Impronte:'));
+    P('\n  ' + c.bold(t('Impronte:')));
     for (const [k, v] of Object.entries(r.file.hashes)) P(`   ${k.toUpperCase().padEnd(7)} ${c.dim(v)}`);
     for (const k of r.categories.filter((k) => k.applicable && k.info && Object.keys(k.info).length)) {
       P('\n  ' + c.bold(k.name));
@@ -130,7 +135,7 @@ function printReport(r, opt = {}) {
 
 /** One line per file */
 function oneLine(r) {
-  if (r.error) return `${c.dim('  —/100')}  ${c.yellow('Errore'.padEnd(14))} ${relPath(r.file.path)} ${c.dim(r.error)}`;
+  if (r.error) return `${c.dim('  —/100')}  ${c.yellow(t('Errore').padEnd(14))} ${relPath(r.file.path)} ${c.dim(r.error)}`;
   const top = r.findings.find((f) => f.severity !== 'info');
   return `${colorFor(r.overall.score)(String(r.overall.score).padStart(3) + '/100')}  ${r.overall.verdict.padEnd(14)} ${relPath(r.file.path) || r.file.name}${top && r.overall.score < 90 ? c.dim('  — ' + top.title) : ''}${r.cached ? c.gray(' (cache)') : ''}`;
 }

@@ -2,6 +2,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LEVEL_COLOR, levelOf, SEVERITY } from '../lib.js';
 import Icon from './Icon.jsx';
+import { t } from '../i18n.js';
 
 /** Virtualized list: renders only the visible rows (millions of lines without slowdowns) */
 export function VirtualList({ count, rowHeight = 20, render, scrollTo, className = '', overscan = 20, onScroll, innerWidth }) {
@@ -38,7 +39,7 @@ export function ScoreRing({ score, size = 112, stroke = 7, label = true }) {
   const c = 2 * Math.PI * r;
   const color = LEVEL_COLOR[levelOf(score)];
   return (
-    <div className="ring" style={{ width: size, height: size }} role="img" aria-label={`Punteggio ${score} su 100`}>
+    <div className="ring" style={{ width: size, height: size }} role="img" aria-label={t('Punteggio {n} su 100', { n: score })}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--track)" strokeWidth={stroke} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
@@ -48,7 +49,7 @@ export function ScoreRing({ score, size = 112, stroke = 7, label = true }) {
       {label && (
         <div className="ring-label">
           <span className="ring-score" style={{ fontSize: size * 0.3 }}>{score}</span>
-          <span className="ring-max" style={{ fontSize: Math.max(10, size * 0.095) }}>su 100</span>
+          <span className="ring-max" style={{ fontSize: Math.max(10, size * 0.095) }}>{t('su 100')}</span>
         </div>
       )}
     </div>
@@ -56,12 +57,12 @@ export function ScoreRing({ score, size = 112, stroke = 7, label = true }) {
 }
 
 export function ScoreChip({ score }) {
-  return <span className={`chip chip-${levelOf(score)}`} title={`${score} su 100`}>{score}</span>;
+  return <span className={`chip chip-${levelOf(score)}`} title={t('{n} su 100', { n: score })}>{score}</span>;
 }
 
 export function SevBadge({ sev }) {
   const s = SEVERITY[sev] || SEVERITY.info;
-  return <span className="sev" style={{ '--c': s.color }}>{s.label}</span>;
+  return <span className="sev" style={{ '--c': s.color }}>{t(s.label)}</span>;
 }
 
 /** Radar chart of the per-criterion scores */
@@ -75,7 +76,7 @@ export function Radar({ cats, size = 300, onPick }) {
   };
   const poly = cats.map((k, i) => pt(i, Math.max(0.04, k.score / 100)).join(',')).join(' ');
   return (
-    <svg className="radar" viewBox={`-20 0 ${size + 40} ${size}`} style={{ overflow: 'visible' }} role="img" aria-label="Grafico radar dei punteggi">
+    <svg className="radar" viewBox={`-20 0 ${size + 40} ${size}`} style={{ overflow: 'visible' }} role="img" aria-label={t('Grafico radar dei punteggi')}>
       {[0.25, 0.5, 0.75, 1].map((g) => <polygon key={g} points={cats.map((_, i) => pt(i, g).join(',')).join(' ')} className="radar-grid" />)}
       {cats.map((_, i) => { const [x, y] = pt(i, 1); return <line key={i} x1={c} y1={c} x2={x} y2={y} className="radar-grid" />; })}
       <polygon points={poly} className="radar-area" />
@@ -103,7 +104,7 @@ export function EntropyChart({ profile, height = 140 }) {
   return (
     <div className="chart-wrap">
       <div className="chart-y"><span>8</span><span>4</span><span>0</span></div>
-      <svg className="entropy" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Profilo di entropia">
+      <svg className="entropy" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={t('Profilo di entropia')}>
         <line x1="0" x2={W} y1={H - (7.2 / 8) * H} y2={H - (7.2 / 8) * H} className="entropy-th" />
         <polygon points={`0,${H} ${line} ${W},${H}`} className="entropy-area" />
         <polyline points={line} className="entropy-line" />
@@ -115,8 +116,8 @@ export function EntropyChart({ profile, height = 140 }) {
 export function Histogram({ data, height = 110 }) {
   if (!data?.length) return null;
   return (
-    <div className="histo" style={{ height }} role="img" aria-label="Istogramma dei byte">
-      {data.map((v, i) => <span key={i} style={{ height: `${Math.max(v * 100, v ? 1.5 : 0)}%` }} title={`0x${i.toString(16).padStart(2, '0')} (${i >= 32 && i < 127 ? String.fromCharCode(i) : '·'}): ${(v * 100).toFixed(1)}% del massimo`} className={i >= 32 && i < 127 ? 'pr' : ''} />)}
+    <div className="histo" style={{ height }} role="img" aria-label={t('Istogramma dei byte')}>
+      {data.map((v, i) => <span key={i} style={{ height: `${Math.max(v * 100, v ? 1.5 : 0)}%` }} title={`0x${i.toString(16).padStart(2, '0')} (${i >= 32 && i < 127 ? String.fromCharCode(i) : '·'}): ${t('{p}% del massimo', { p: (v * 100).toFixed(1) })}`} className={i >= 32 && i < 127 ? 'pr' : ''} />)}
     </div>
   );
 }
@@ -158,7 +159,7 @@ export function Stat({ label, value, hint }) {
 
 export function KV({ data }) {
   const e = Object.entries(data || {});
-  if (!e.length) return <p className="muted small">Nessun dato.</p>;
+  if (!e.length) return <p className="muted small">{t('Nessun dato.')}</p>;
   return (
     <table className="tbl kv"><tbody>
       {e.map(([k, v]) => <tr key={k}><td>{k}</td><td className="wrap">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</td></tr>)}

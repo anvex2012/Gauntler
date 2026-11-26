@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { t } = require('../core/i18n');
 /**
  * The "gauntler" terminal command.
  * A small sh launcher written to ~/.local/bin/gauntler (no sudo). It runs the CLI with the Node.js
@@ -152,9 +153,9 @@ function status(dir = defaultDir()) {
 }
 
 function install(dir = defaultDir()) {
-  if (process.platform === 'win32') throw new Error('Su Windows usa: npm link (dalla cartella del progetto)');
+  if (process.platform === 'win32') throw new Error(t('Su Windows usa: npm link (dalla cartella del progetto)'));
   const p = target(dir);
-  if (fs.existsSync(p) && !fs.readFileSync(p, 'utf8').includes(MARKER)) throw new Error(`${p} esiste già e non è stato creato da Gauntler: non lo sovrascrivo`);
+  if (fs.existsSync(p) && !fs.readFileSync(p, 'utf8').includes(MARKER)) throw new Error(t('{p} esiste già e non è stato creato da Gauntler: non lo sovrascrivo', { p }));
   fs.mkdirSync(dir, { recursive: true });
   const tmp = `${p}.tmp-${process.pid}`;
   fs.writeFileSync(tmp, launcherScript(), { mode: 0o755 });
@@ -165,7 +166,7 @@ function install(dir = defaultDir()) {
 function uninstall(dir = defaultDir()) {
   const p = target(dir);
   if (!fs.existsSync(p)) return { removed: false, path: p };
-  if (!fs.readFileSync(p, 'utf8').includes(MARKER)) throw new Error(`${p} non è stato creato da Gauntler: non lo rimuovo`);
+  if (!fs.readFileSync(p, 'utf8').includes(MARKER)) throw new Error(t('{p} non è stato creato da Gauntler: non lo rimuovo', { p }));
   fs.unlinkSync(p);
   return { removed: true, path: p, rc: removePath() };
 }

@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const { findAll, truncate, isDoc } = require('../utils');
 
 /** Social engineering / phishing language dictionary (Italian + English) */
@@ -36,7 +37,7 @@ module.exports = {
         h.locs.push(loc);
         const w = m[0].toLowerCase();
         h.words.set(w, (h.words.get(w) || 0) + 1);
-        ctx.annotate(loc, unit.lineText(m.index), { id: 'soc:' + id, sev: c.w >= 2 ? 'medium' : 'low', label: c.name, desc: `Espressione tipica del phishing: "${m[0]}"` });
+        ctx.annotate(loc, unit.lineText(m.index), { id: 'soc:' + id, sev: c.w >= 2 ? 'medium' : 'low', label: c.name, desc: msg('Espressione tipica del phishing: "{text}"', { text: m[0] }) });
       }
     }
     // Email headers
@@ -63,11 +64,11 @@ module.exports = {
     for (const id of present) score += CATS[id].w * Math.min(3, st.hits[id].n);
     for (const id of present) {
       const h = st.hits[id];
-      out.push({ severity: 'info', title: `${CATS[id].name}: ${h.n} espressioni`, detail: 'Linguaggio tipico dei messaggi di truffa.', evidence: [...h.words.keys()].slice(0, 8), loc: h.locs[0], locs: h.locs });
+      out.push({ severity: 'info', title: msg('{name}: {n} espressioni', { name: CATS[id].name, n: h.n }), detail: 'Linguaggio tipico dei messaggi di truffa.', evidence: [...h.words.keys()].slice(0, 8), loc: h.locs[0], locs: h.locs });
     }
     const strong = present.filter((id) => ['credentials', 'money', 'sextortion', 'threat'].includes(id)).length;
-    if (present.length >= 4 && strong >= 1 || score >= 12) out.unshift({ severity: 'high', title: 'Messaggio con forti caratteristiche di phishing/truffa', detail: `Combina ${present.length} tecniche di manipolazione: ${present.map((id) => CATS[id].name.toLowerCase()).join(', ')}.` });
-    else if (present.length >= 3 || score >= 6) out.unshift({ severity: 'medium', title: 'Linguaggio di manipolazione', detail: `Presenti ${present.length} tecniche tipiche delle truffe: ${present.map((id) => CATS[id].name.toLowerCase()).join(', ')}.` });
+    if (present.length >= 4 && strong >= 1 || score >= 12) out.unshift({ severity: 'high', title: 'Messaggio con forti caratteristiche di phishing/truffa', detail: msg('Combina {n} tecniche di manipolazione: {list}.', { n: present.length, list: present.map((id) => CATS[id].name.toLowerCase()) }) });
+    else if (present.length >= 3 || score >= 6) out.unshift({ severity: 'medium', title: 'Linguaggio di manipolazione', detail: msg('Presenti {n} tecniche tipiche delle truffe: {list}.', { n: present.length, list: present.map((id) => CATS[id].name.toLowerCase()) }) });
     else if (present.length >= 2) out.unshift({ severity: 'low', title: 'Alcune espressioni sospette', detail: 'Il testo contiene espressioni usate anche nelle truffe.' });
     const m = st.mail;
     if (m) {
@@ -78,7 +79,7 @@ module.exports = {
       if (m.returnMismatch) out.push({ severity: 'low', title: 'Return-Path diverso dal mittente', detail: 'Dominio di invio diverso da quello mostrato.', evidence: [`Return-Path: ${m.ret}`] });
       if (m.displaySpoof) out.push({ severity: 'high', title: 'Mittente falsificato nel nome visualizzato', detail: 'Il nome mostra un indirizzo email diverso da quello reale.', evidence: [m.from] });
     }
-    const checks = Object.entries(CATS).map(([id, c]) => ({ name: `Linguaggio: ${c.name}`, ok: !st.hits[id], note: `${st.hits[id]?.n || 0}` }));
+    const checks = Object.entries(CATS).map(([id, c]) => ({ name: msg('Linguaggio: {name}', { name: c.name }), ok: !st.hits[id], note: `${st.hits[id]?.n || 0}` }));
     if (m) checks.push({ name: 'SPF', ok: !/fail/i.test(m.spf), note: m.spf }, { name: 'DKIM', ok: !/fail/i.test(m.dkim), note: m.dkim }, { name: 'DMARC', ok: !/fail/i.test(m.dmarc), note: m.dmarc }, { name: 'Reply-To coerente', ok: !m.replyMismatch });
     const info = { 'Tecniche di manipolazione': present.length, 'Punteggio linguistico': Math.round(score) };
     if (m) Object.assign(info, { 'Da': truncate(m.from, 80), 'Oggetto': truncate(m.subject, 80), SPF: m.spf, DKIM: m.dkim, DMARC: m.dmarc });

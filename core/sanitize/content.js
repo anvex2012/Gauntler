@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { t } = require('../i18n');
 /**
  * Disarm of RTF, HTML/SVG/XML markup, images and plain text.
  */
@@ -65,8 +66,8 @@ function rtf(buf) {
   let txt = out.join('');
   let depth = 0, end = -1;
   for (let k = 0; k < txt.length; k++) { if (txt[k] === '\\') { k++; continue; } if (txt[k] === '{') depth++; else if (txt[k] === '}') { depth--; if (!depth) { end = k + 1; break; } } }
-  const list = [...actions].map(([k, n]) => `Rimosso gruppo RTF \\${k}${n > 1 ? ` (${n})` : ''}`);
-  if (end > 0 && txt.length - end > 2) { list.push(`Eliminati ${txt.length - end} byte dopo la fine del documento`); txt = txt.slice(0, end) + '\n'; }
+  const list = [...actions].map(([k, n]) => (n > 1 ? t('Rimosso gruppo RTF \\{k} ({n})', { k, n }) : t('Rimosso gruppo RTF \\{k}', { k })));
+  if (end > 0 && txt.length - end > 2) { list.push(t('Eliminati {n} byte dopo la fine del documento', { n: txt.length - end })); txt = txt.slice(0, end) + '\n'; }
   return { output: Buffer.from(txt, 'latin1'), actions: list };
 }
 
@@ -153,8 +154,8 @@ function jpeg(buf) {
   }
   parts.push(Buffer.from([0xff, 0xd9]));
   const tail = buf.length - (i + 2);
-  const list = [...actions].map(([k, n]) => `Rimossi metadati ${k}${n > 1 ? ` (${n})` : ''}`);
-  if (tail > 0) list.push(`Eliminati ${tail} byte nascosti dopo la fine dell'immagine`);
+  const list = [...actions].map(([k, n]) => (n > 1 ? t('Rimossi metadati {k} ({n})', { k, n }) : t('Rimossi metadati {k}', { k })));
+  if (tail > 0) list.push(t('Eliminati {n} byte nascosti dopo la fine dell\'immagine', { n: tail }));
   return { output: Buffer.concat(parts), actions: list };
 }
 
@@ -175,8 +176,8 @@ function png(buf) {
     if (type === 'IEND') { ended = true; break; }
   }
   if (!ended) throw new Error('PNG senza fine (IEND)');
-  const list = [...actions].map(([k, n]) => `Rimosso blocco ${k}${n > 1 ? ` (${n})` : ''}`);
-  if (buf.length > i) list.push(`Eliminati ${buf.length - i} byte nascosti dopo la fine dell'immagine`);
+  const list = [...actions].map(([k, n]) => (n > 1 ? t('Rimosso blocco {k} ({n})', { k, n }) : t('Rimosso blocco {k}', { k })));
+  if (buf.length > i) list.push(t('Eliminati {n} byte nascosti dopo la fine dell\'immagine', { n: buf.length - i }));
   return { output: Buffer.concat(parts), actions: list };
 }
 
@@ -208,7 +209,7 @@ function gif(buf) {
     } else throw new Error('GIF danneggiato');
   }
   const list = [...actions].map(([k, n]) => `Rimosso ${k}${n > 1 ? ` (${n})` : ''}`);
-  if (buf.length > i) list.push(`Eliminati ${buf.length - i} byte nascosti dopo la fine dell'immagine`);
+  if (buf.length > i) list.push(t('Eliminati {n} byte nascosti dopo la fine dell\'immagine', { n: buf.length - i }));
   return { output: Buffer.concat(parts), actions: list };
 }
 
@@ -220,7 +221,7 @@ function webp(buf) {
   while (i + 8 <= end) {
     const id = buf.toString('latin1', i, i + 4), len = buf.readUInt32LE(i + 4);
     const total = 8 + len + (len & 1);
-    if (/^(EXIF|XMP )$/.test(id)) actions.push(`Rimossi metadati ${id.trim()}`);
+    if (/^(EXIF|XMP )$/.test(id)) actions.push(t('Rimossi metadati {k}', { k: id.trim() }));
     else parts.push(buf.subarray(i, i + total));
     i += total;
   }
@@ -230,13 +231,13 @@ function webp(buf) {
   if (x === 0) body[8] &= ~0x0c;
   const head = Buffer.from('RIFF\0\0\0\0WEBP', 'latin1');
   head.writeUInt32LE(body.length + 4, 4);
-  if (buf.length > end) actions.push(`Eliminati ${buf.length - end} byte nascosti dopo la fine dell'immagine`);
+  if (buf.length > end) actions.push(t('Eliminati {n} byte nascosti dopo la fine dell\'immagine', { n: buf.length - end }));
   return { output: Buffer.concat([head, body]), actions };
 }
 
 function bmp(buf) {
   const size = buf.readUInt32LE(2);
-  return size < buf.length ? { output: buf.subarray(0, size), actions: [`Eliminati ${buf.length - size} byte nascosti dopo la fine dell'immagine`] } : { output: buf, actions: [] };
+  return size < buf.length ? { output: buf.subarray(0, size), actions: [t('Eliminati {n} byte nascosti dopo la fine dell\'immagine', { n: buf.length - size })] } : { output: buf, actions: [] };
 }
 
 /* ----------------------------------------------------------------- Text */
@@ -247,8 +248,8 @@ function text(buf, { csv = false } = {}) {
   let s = buf.toString('utf8');
   const actions = [];
   const nb = (s.match(BIDI) || []).length, ni = (s.match(INVISIBLE) || []).length;
-  if (nb) { s = s.replace(BIDI, ''); actions.push(`Rimossi ${nb} caratteri di controllo bidirezionale (Trojan Source)`); }
-  if (ni) { s = s.replace(INVISIBLE, ''); actions.push(`Rimossi ${ni} caratteri invisibili`); }
+  if (nb) { s = s.replace(BIDI, ''); actions.push(t('Rimossi {n} caratteri di controllo bidirezionale (Trojan Source)', { n: nb })); }
+  if (ni) { s = s.replace(INVISIBLE, ''); actions.push(t('Rimossi {n} caratteri invisibili', { n: ni })); }
   if (csv) {
     // CSV/formula injection: cells starting with = + - @ (or tab/CR) are executed by spreadsheets
     let n = 0;
@@ -257,7 +258,7 @@ function text(buf, { csv = false } = {}) {
       if (/^[=+\-@\t\r]/.test(t) && !/^[+-]?\d[\d.,]*$/.test(t.trim())) { n++; return cell.startsWith('"') ? `"'${t}` : `'${cell}`; }
       return cell;
     }).join('')).join('\n');
-    if (n) actions.push(`Neutralizzate ${n} celle con formule (CSV injection)`);
+    if (n) actions.push(t('Neutralizzate {n} celle con formule (CSV injection)', { n }));
   }
   return { output: Buffer.from(s, 'utf8'), actions };
 }

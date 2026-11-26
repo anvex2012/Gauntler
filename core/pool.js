@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { t } = require('./i18n');
 /**
  * Pool of worker threads: N parallel analyses, each in its own thread.
  * A file that exceeds the timeout gets its thread terminated (and replaced) without blocking the others.
@@ -31,7 +32,7 @@ class ScanPool {
       this._next();
     });
     w.on('error', (e) => this._fail(w, e));
-    w.on('exit', (code) => { if (w.job) this._fail(w, new Error(`Worker terminato (codice ${code})`)); });
+    w.on('exit', (code) => { if (w.job) this._fail(w, new Error(t('Worker terminato (codice {code})', { code }))); });
     w.unref();
     this.workers.push(w);
     return w;
@@ -55,7 +56,7 @@ class ScanPool {
       w.job = job;
       w.ref();
       job.timer = setTimeout(() => {
-        const err = Object.assign(new Error(`Tempo massimo superato (${Math.round(this.timeoutMs / 1000)} s)`), { code: 'TIMEOUT' });
+        const err = Object.assign(new Error(t('Tempo massimo superato ({n} s)', { n: Math.round(this.timeoutMs / 1000) })), { code: 'TIMEOUT' });
         w.terminate();
         this._fail(w, err);
       }, this.timeoutMs);
@@ -75,7 +76,7 @@ class ScanPool {
 
   async close() {
     this.closed = true;
-    for (const j of this.queue) j.reject(new Error('Annullato'));
+    for (const j of this.queue) j.reject(new Error(t('Annullato')));
     this.queue = [];
     await Promise.all(this.workers.map((w) => w.terminate()));
     this.workers = [];

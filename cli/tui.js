@@ -22,6 +22,8 @@ const history = require('../core/history');
 const report = require('../core/report');
 const { ScanPool } = require('../core/pool');
 const ui = require('./ui');
+const i18n = require('../core/i18n');
+const { t } = i18n;
 
 /* ───────────────────────── styles ───────────────────────── */
 
@@ -114,7 +116,8 @@ function parsePaths(text) {
 
 function nativePick(kind, onChild = () => {}) {
   if (process.platform !== 'darwin') return Promise.resolve({ unsupported: true, paths: [] });
-  const what = kind === 'folder' ? 'choose folder with prompt "Scegli le cartelle da analizzare"' : 'choose file with prompt "Scegli i file da analizzare"';
+  const prompt = (kind === 'folder' ? t('Scegli le cartelle da analizzare') : t('Scegli i file da analizzare')).replace(/["\\]/g, '');
+  const what = kind === 'folder' ? `choose folder with prompt "${prompt}"` : `choose file with prompt "${prompt}"`;
   const script = [
     'set out to ""',
     'try',
@@ -138,23 +141,27 @@ function nativePick(kind, onChild = () => {}) {
 
 /* ───────────────────────── commands ───────────────────────── */
 
-const COMMANDS = [
-  ['/file', 'Scegli uno o più file da analizzare'],
-  ['/cartella', 'Scegli una cartella da analizzare'],
-  ['/report', 'Report completo di un risultato: /report 2'],
-  ['/dettagli', 'Report con righe segnalate e controlli: /dettagli 2'],
-  ['/elenco', 'Tutti i file analizzati in questa sessione'],
-  ['/esporta', 'Salva i risultati: /esporta report.html (json, sarif, csv, md, html)'],
-  ['/pulisci', 'Pulisci lo schermo'],
-  ['/mouse', 'Attiva o disattiva il mouse (per selezionare testo)'],
-  ['/aiuto', 'Guida e scorciatoie da tastiera'],
-  ['/esci', 'Chiudi Gauntler'],
+// Commands: Italian names in Italian, English names in the other languages (both always work)
+const CMDS = [
+  { id: '/file', it: '/file', en: '/file', d: 'Scegli uno o più file da analizzare' },
+  { id: '/cartella', it: '/cartella', en: '/folder', d: 'Scegli una cartella da analizzare' },
+  { id: '/report', it: '/report', en: '/report', d: 'Report completo di un risultato: {cmd} 2' },
+  { id: '/dettagli', it: '/dettagli', en: '/details', d: 'Report con righe segnalate e controlli: {cmd} 2' },
+  { id: '/elenco', it: '/elenco', en: '/list', d: 'Tutti i file analizzati in questa sessione' },
+  { id: '/esporta', it: '/esporta', en: '/export', d: 'Salva i risultati: {cmd} report.html (json, sarif, csv, md, html)' },
+  { id: '/pulisci', it: '/pulisci', en: '/clear', d: 'Pulisci lo schermo' },
+  { id: '/mouse', it: '/mouse', en: '/mouse', d: 'Attiva o disattiva il mouse (per selezionare testo)' },
+  { id: '/lingua', it: '/lingua', en: '/language', d: 'Cambia la lingua: {cmd} en (it, en, es, fr, de)' },
+  { id: '/aiuto', it: '/aiuto', en: '/help', d: 'Guida e scorciatoie da tastiera' },
+  { id: '/esci', it: '/esci', en: '/quit', d: 'Chiudi Gauntler' },
 ];
-const CMD_ALIAS = { '/help': '/aiuto', '/?': '/aiuto', '/clear': '/pulisci', '/quit': '/esci', '/exit': '/esci', '/q': '/esci', '/folder': '/cartella', '/list': '/elenco', '/export': '/esporta', '/r': '/report', '/d': '/dettagli' };
+const cmdName = (id) => { const c = CMDS.find((x) => x.id === id); return i18n.getLanguage() === 'it' ? c.it : c.en; };
+const COMMANDS = () => CMDS.map((c) => { const n = cmdName(c.id); return [n, t(c.d, { cmd: n })]; });
+const CMD_ALIAS = { '/help': '/aiuto', '/?': '/aiuto', '/clear': '/pulisci', '/quit': '/esci', '/exit': '/esci', '/q': '/esci', '/folder': '/cartella', '/list': '/elenco', '/export': '/esporta', '/r': '/report', '/d': '/dettagli', '/details': '/dettagli', '/language': '/lingua', '/lang': '/lingua' };
 const MENU = [
-  { id: 'file', label: 'File…', hint: 'Ctrl+O' },
-  { id: 'folder', label: 'Cartella…', hint: 'Ctrl+K' },
-  { id: 'type', label: 'Digita un percorso', hint: '' },
+  { id: 'file', get label() { return t('File…'); }, hint: 'Ctrl+O' },
+  { id: 'folder', get label() { return t('Cartella…'); }, hint: 'Ctrl+K' },
+  { id: 'type', get label() { return t('Digita un percorso'); }, hint: '' },
 ];
 
 /* ───────────────────────── application ───────────────────────── */
@@ -206,7 +213,7 @@ class Tui {
       this.blocks.push(this.welcomeBlock());
       if (this.firstRun) {
         const f = this.firstRun;
-        this.blocks.push({ render: () => ['', `  ${T.ok('✓')} ${T.text(f.installed ? 'Comando "gauntler" installato.' : 'Comando "gauntler" aggiunto al PATH.')} ${T.muted('Da una nuova finestra del terminale basta scrivere')} ${T.accent('gauntler')}`, ...(f.rc ? [`    ${T.faint('PATH aggiornato in ' + tilde(f.rc))}`] : [])] });
+        this.blocks.push({ render: () => ['', `  ${T.ok('✓')} ${T.text(f.installed ? t('Comando "gauntler" installato.') : t('Comando "gauntler" aggiunto al PATH.'))} ${T.muted(t('Da una nuova finestra del terminale basta scrivere'))} ${T.accent('gauntler')}`, ...(f.rc ? [`    ${T.faint(t('PATH aggiornato in {rc}', { rc: tilde(f.rc) }))}`] : [])] });
       }
       this.render();
     });
@@ -231,7 +238,7 @@ class Tui {
     const ok = this.results.filter((r) => r.status === 'done');
     if (ok.length) {
       const bad = ok.filter((r) => r.result.overall.score < 40).length;
-      console.log(`${T.accentB('◆ Gauntler')} ${T.muted('· sessione chiusa ·')} ${ok.length} file analizzati${bad ? ' · ' + T.err(bad + (bad === 1 ? ' pericoloso' : ' pericolosi')) : ' · ' + T.ok('nessun file pericoloso')}`);
+      console.log(`${T.accentB('◆ Gauntler')} ${T.muted('· ' + t('sessione chiusa') + ' ·')} ${t('{n} file analizzati', { n: ok.length })}${bad ? ' · ' + T.err(bad === 1 ? t('{n} pericoloso', { n: bad }) : t('{n} pericolosi', { n: bad })) : ' · ' + T.ok(t('nessun file pericoloso'))}`);
     }
     if (this.pool) await this.pool.close().catch(() => {});
     this.done(0);
@@ -304,7 +311,7 @@ class Tui {
   suggestions() {
     if (!this.input.startsWith('/') || this.input.includes(' ')) return [];
     const q = this.input.toLowerCase();
-    return COMMANDS.filter(([c]) => c.startsWith(q));
+    return COMMANDS().filter(([c]) => c.startsWith(q));
   }
 
   onKey(k) {
@@ -367,16 +374,16 @@ class Tui {
 
   /* ── actions ── */
   async menuAction(id) {
-    if (id === 'type') { this.note('Digita o incolla il percorso di un file o di una cartella, poi premi Invio'); return; }
+    if (id === 'type') { this.note(t('Digita o incolla il percorso di un file o di una cartella, poi premi Invio')); return; }
     if (this.picking) return;
     this.picking = true; this.render();
     const r = await nativePick(id, (ch) => { this.picker = ch; });
     this.picker = null;
     this.picking = false;
     if (this.restored) return;
-    if (r.unsupported) { this.note('Il selettore grafico è disponibile solo su macOS: digita il percorso e premi Invio', 'warn'); return; }
-    if (r.error) { this.note('Impossibile aprire il selettore: ' + r.error, 'err'); return; }
-    if (!r.paths.length) { this.note('Selezione annullata'); return; }
+    if (r.unsupported) { this.note(t('Il selettore grafico è disponibile solo su macOS: digita il percorso e premi Invio'), 'warn'); return; }
+    if (r.error) { this.note(t('Impossibile aprire il selettore: {msg}', { msg: r.error }), 'err'); return; }
+    if (!r.paths.length) { this.note(t('Selezione annullata')); return; }
     this.add(r.paths, id === 'folder' ? 'Cartella scelta' : 'File scelto');
   }
 
@@ -386,11 +393,11 @@ class Tui {
     if (!line) return;
     if (this.hist[this.hist.length - 1] !== line) this.hist.push(line);
     const first = line.split(/\s+/)[0].toLowerCase();
-    if (COMMANDS.some(([c]) => c === first) || CMD_ALIAS[first]) return this.command(line);
+    if (CMDS.some((c) => c.it === first || c.en === first) || CMD_ALIAS[first]) return this.command(line);
     const paths = parsePaths(line);
     if (!paths) {
       const missing = tokenize(line).filter((p) => !fs.existsSync(p));
-      this.pushLines(['', `  ${T.err('✗')} ${T.text('Percorso non trovato:')} ${T.muted(tilde(missing[0] || line))}`, `    ${T.faint('Suggerimento: premi')} ${T.key(' + ')} ${T.faint('per scegliere il file dal Finder, oppure trascinalo in questa finestra.')}`]);
+      this.pushLines(['', `  ${T.err('✗')} ${T.text(t('Percorso non trovato:'))} ${T.muted(tilde(missing[0] || line))}`, `    ${T.faint(t('Suggerimento: premi'))} ${T.key(' + ')} ${T.faint(t('per scegliere il file dal Finder, oppure trascinalo in questa finestra.'))}`]);
       return;
     }
     this.add(paths, 'Percorso');
@@ -398,12 +405,13 @@ class Tui {
 
   command(line) {
     const [raw, ...args] = line.split(/\s+/);
-    const name = CMD_ALIAS[raw.toLowerCase()] || raw.toLowerCase();
+    const low = raw.toLowerCase();
+    const name = CMD_ALIAS[low] || (CMDS.find((c) => c.en === low) || {}).id || low;
     const pickN = () => {
       const n = args[0] ? parseInt(args[0].replace('#', ''), 10) : this.results.filter((r) => r.status === 'done').slice(-1)[0]?.n;
       const r = this.results.find((x) => x.n === n);
-      if (!r) { this.note(args[0] ? `Nessun risultato #${args[0]}` : 'Nessun file analizzato: premi + per aggiungerne uno', 'warn'); return null; }
-      if (r.status !== 'done') { this.note(r.status === 'error' ? `#${n}: ${r.error}` : `#${n} è ancora in analisi`, 'warn'); return null; }
+      if (!r) { this.note(args[0] ? t('Nessun risultato #{n}', { n: args[0] }) : t('Nessun file analizzato: premi + per aggiungerne uno'), 'warn'); return null; }
+      if (r.status !== 'done') { this.note(r.status === 'error' ? `#${n}: ${r.error}` : t('#{n} è ancora in analisi', { n }), 'warn'); return null; }
       return r;
     };
     switch (name) {
@@ -412,29 +420,38 @@ class Tui {
       case '/aiuto': return this.push(this.helpBlock());
       case '/pulisci': this.blocks = []; this.scroll = 0; return this.render();
       case '/esci': return this.quit();
-      case '/mouse': this.setMouse(!this.mouse); return this.note(this.mouse ? 'Mouse attivo: clic su + e rotella per scorrere' : 'Mouse disattivato: ora puoi selezionare e copiare il testo');
+      case '/mouse': this.setMouse(!this.mouse); return this.note(this.mouse ? t('Mouse attivo: clic su + e rotella per scorrere') : t('Mouse disattivato: ora puoi selezionare e copiare il testo'));
+      case '/lingua': {
+        const code = i18n.normalize(args[0]);
+        if (!code) {
+          const cmd = cmdName('/lingua');
+          return this.push({ render: () => ['', `  ${T.bold(t('Lingua'))}  ${T.muted(t('scrivi {cmd} seguito dal codice', { cmd }))}`, ...i18n.LANGUAGES.map((l) => `    ${l.code === i18n.getLanguage() ? T.ok('●') : T.faint('○')} ${T.accent(cmd + ' ' + l.code)}  ${T.text(l.name)}`)] });
+        }
+        try { require('./language').save(code); } catch (e) { return this.note(t(e.message), 'err'); }
+        return this.note(t('Lingua impostata: {name}', { name: i18n.LANGUAGES.find((l) => l.code === code).name }));
+      }
       case '/report': case '/dettagli': {
         const r = pickN(); if (!r) return;
         const full = name === '/dettagli';
         const txt = ui.printReport(r.result, { lines: full, checks: full, all: full });
-        return this.push({ render: (w) => { const h = `  ── Report #${r.n} · ${r.name} `; return ['', T.faint(h + '─'.repeat(Math.max(0, w - vlen(h) - 2))), ...txt.split('\n').slice(2)]; } });
+        return this.push({ render: (w) => { const h = `  ── ${t('Report')} #${r.n} · ${r.name} `; return ['', T.faint(h + '─'.repeat(Math.max(0, w - vlen(h) - 2))), ...txt.split('\n').slice(2)]; } });
       }
       case '/elenco': {
         const done = this.results;
-        if (!done.length) return this.note('Nessun file analizzato: premi + per aggiungerne uno', 'warn');
-        return this.push({ render: (w) => ['', `  ${T.bold('File analizzati')} ${T.muted('· ' + done.length)}`, ...done.map((r) => this.resultLine(r, w))] });
+        if (!done.length) return this.note(t('Nessun file analizzato: premi + per aggiungerne uno'), 'warn');
+        return this.push({ render: (w) => ['', `  ${T.bold(t('File analizzati'))} ${T.muted('· ' + done.length)}`, ...done.map((r) => this.resultLine(r, w))] });
       }
       case '/esporta': {
         const ok = this.results.filter((r) => r.status === 'done').map((r) => r.result);
-        if (!ok.length) return this.note('Niente da esportare', 'warn');
+        if (!ok.length) return this.note(t('Niente da esportare'), 'warn');
         const dest = path.resolve(expandHome(args.join(' ') || `gauntler-report.html`));
         const ext = path.extname(dest).slice(1).toLowerCase();
         const fmt = { htm: 'html', markdown: 'md' }[ext] || ext;
-        if (!report.FORMATS[fmt]) return this.note('Estensione non supportata: usa .html .json .sarif .csv .md', 'warn');
-        try { fs.writeFileSync(dest, report.render(fmt, ok, {})); this.pushLines(['', `  ${T.ok('✓')} ${T.text('Report salvato')} ${T.muted(tilde(dest))}`]); } catch (e) { this.note('Errore: ' + e.message, 'err'); }
+        if (!report.FORMATS[fmt]) return this.note(t('Estensione non supportata: usa .html .json .sarif .csv .md'), 'warn');
+        try { fs.writeFileSync(dest, report.render(fmt, ok, {})); this.pushLines(['', `  ${T.ok('✓')} ${T.text(t('Report salvato'))} ${T.muted(tilde(dest))}`]); } catch (e) { this.note(t('Errore: {msg}', { msg: e.message }), 'err'); }
         return;
       }
-      default: this.note(`Comando sconosciuto: ${raw} — digita /aiuto`, 'warn');
+      default: this.note(t('Comando sconosciuto: {cmd} — digita {help}', { cmd: raw, help: cmdName('/aiuto') }), 'warn');
     }
   }
 
@@ -450,12 +467,12 @@ class Tui {
     }
     for (const f of files) this.scanOne(f);
     for (const d of folders) this.scanFolder(d);
-    if (!files.length && !folders.length) this.note('Nessun file valido', 'warn');
+    if (!files.length && !folders.length) this.note(t('Nessun file valido'), 'warn');
     void origin;
   }
 
   scanOpts() {
-    return { passwords: [], only: null, skip: [], noClamav: false, yara: [], online: false, suppress: [], cache: this.cfg.cache };
+    return { passwords: [], only: null, skip: [], noClamav: false, yara: [], online: false, suppress: [], cache: this.cfg.cache, lang: i18n.getLanguage() };
   }
 
   track(file) {
@@ -464,7 +481,7 @@ class Tui {
     this.busy++;
     return this.getPool().scan(file, this.scanOpts()).then(
       (res) => { r.status = 'done'; r.result = res; r.ms = Date.now() - r.t0; try { if (this.cfg.history !== false) history.record(res); } catch { /* history optional */ } },
-      (e) => { r.status = 'error'; r.error = e.message; },
+      (e) => { r.status = 'error'; r.error = t(e.message); },
     ).finally(() => { this.busy--; this.render(); }).then(() => r);
   }
 
@@ -472,13 +489,13 @@ class Tui {
     const p = this.track(file);
     const r = this.results[this.results.length - 1];
     this.push({ render: (w) => this.fileBlock(r, w) });
-    p.then(() => { if (this.results.filter((x) => x.status === 'done').length === 1 && r.status === 'done') this.pushLines(['', `  ${T.faint('Digita')} ${T.accent('/report ' + r.n)} ${T.faint('per il report completo, oppure premi')} ${T.key(' + ')} ${T.faint('per analizzare altri file.')}`]); });
+    p.then(() => { if (this.results.filter((x) => x.status === 'done').length === 1 && r.status === 'done') this.pushLines(['', `  ${T.faint(t('Digita'))} ${T.accent('/report ' + r.n)} ${T.faint(t('per il report completo, oppure premi'))} ${T.key(' + ')} ${T.faint(t('per analizzare altri file.'))}`]); });
   }
 
   scanFolder(dir) {
     const errs = [];
     let files;
-    try { files = core.walk(dir, { recursive: true, exclude: this.cfg.exclude, include: [], followSymlinks: false, onError: (d) => errs.push(d) }); } catch (e) { this.note('Impossibile leggere la cartella: ' + e.message, 'err'); return; }
+    try { files = core.walk(dir, { recursive: true, exclude: this.cfg.exclude, include: [], followSymlinks: false, onError: (d) => errs.push(d) }); } catch (e) { this.note(t('Impossibile leggere la cartella: {msg}', { msg: e.message }), 'err'); return; }
     const uniq = [...new Set(files.map((f) => path.resolve(f)))];
     const g = { dir, items: [], total: uniq.length, t0: Date.now(), errs };
     this.push({ render: (w) => this.folderBlock(g, w) });
@@ -492,7 +509,7 @@ class Tui {
     return {
       render: (W) => {
         const w = Math.min(W - 4, 76);
-        if (w < 30) return ['', `  ${T.accentB('◆ Gauntler')}`, `  ${T.muted('Premi + per aggiungere un file')}`];
+        if (w < 30) return ['', `  ${T.accentB('◆ Gauntler')}`, `  ${T.muted(t('Premi + per aggiungere un file'))}`];
         const inner = w - 4;
         const row = (s = '') => `  ${T.line('│')} ${fit(s, inner)} ${T.line('│')}`;
         const title = ` ${T.accentB('◆')} ${T.bold('Gauntler')} ${T.muted(core.VERSION)} `;
@@ -501,18 +518,18 @@ class Tui {
           '',
           `  ${T.line('╭─')}${title}${T.line('─'.repeat(Math.max(0, w - 3 - vlen(title))) + '╮')}`,
           row(),
-          ...wrap('Analisi di sicurezza approfondita di qualsiasi file. Tutto avviene su questo computer: nessun file viene inviato in rete.', inner - 2).map((l) => row(' ' + T.muted(l))),
+          ...wrap(t('Analisi di sicurezza approfondita di qualsiasi file. Tutto avviene su questo computer: nessun file viene inviato in rete.'), inner - 2).map((l) => row(' ' + T.muted(l))),
           row(),
-          row(' ' + T.bold('Come aggiungere un file')),
+          row(' ' + T.bold(t('Come aggiungere un file'))),
           row(),
-          ...step(1, `Premi ${T.plusK(' + ')} in basso a sinistra (o il tasto ${T.key(' Tab ')}) e scegli ${T.text('File')} o ${T.text('Cartella')}: si apre il selettore del Finder.`).map(row),
-          ...step(2, `Trascina un file o una cartella dal Finder dentro questa finestra.`).map(row),
-          ...step(3, `Digita o incolla un percorso, es. ${T.accent('~/Downloads/fattura.pdf')}, e premi ${T.key(' Invio ')}.`).map(row),
+          ...step(1, t('Premi {plus} in basso a sinistra (o il tasto {tab}) e scegli {file} o {folder}: si apre il selettore del Finder.', { plus: T.plusK(' + '), tab: T.key(' Tab '), file: T.text(t('File')), folder: T.text(t('Cartella')) })).map(row),
+          ...step(2, t('Trascina un file o una cartella dal Finder dentro questa finestra.')).map(row),
+          ...step(3, t('Digita o incolla un percorso, es. {path}, e premi {enter}.', { path: T.accent('~/Downloads/fattura.pdf'), enter: T.key(' ' + t('Invio') + ' ') })).map(row),
           row(),
-          row(' ' + T.muted('Scorciatoie  ') + `${T.key(' Ctrl+O ')} ${T.muted('file')}   ${T.key(' Ctrl+K ')} ${T.muted('cartella')}   ${T.key(' / ')} ${T.muted('comandi')}`),
+          row(' ' + T.muted(t('Scorciatoie') + '  ') + `${T.key(' Ctrl+O ')} ${T.muted(t('file'))}   ${T.key(' Ctrl+K ')} ${T.muted(t('cartella'))}   ${T.key(' / ')} ${T.muted(t('comandi'))}`),
           row(),
           `  ${T.line('╰' + '─'.repeat(w - 2) + '╯')}`,
-          `  ${T.faint(`${core.analyzers.length} criteri di analisi · ClamAV ${this.env.clamav ? 'attivo' : 'non installato'} · digita /aiuto per la guida completa`)}`,
+          `  ${T.faint(t(this.env.clamav ? '{n} criteri di analisi · ClamAV attivo · digita {help} per la guida completa' : '{n} criteri di analisi · ClamAV non installato · digita {help} per la guida completa', { n: core.analyzers.length, help: cmdName('/aiuto') }))}`,
         ];
       },
     };
@@ -523,32 +540,32 @@ class Tui {
     return {
       render: () => [
         '',
-        `  ${T.bold('Aggiungere file')}`,
-        k('+  /  Tab', 'Apre il menu: File… · Cartella… · Digita un percorso'),
-        k('Ctrl+O', 'Selettore di file (selezione multipla)'),
-        k('Ctrl+K', 'Selettore di cartelle'),
-        `    ${T.muted('Puoi anche trascinare file dal Finder o incollare un percorso e premere Invio.')}`,
+        `  ${T.bold(t('Aggiungere file'))}`,
+        k('+  /  Tab', t('Apre il menu: File… · Cartella… · Digita un percorso')),
+        k('Ctrl+O', t('Selettore di file (selezione multipla)')),
+        k('Ctrl+K', t('Selettore di cartelle')),
+        `    ${T.muted(t('Puoi anche trascinare file dal Finder o incollare un percorso e premere Invio.'))}`,
         '',
-        `  ${T.bold('Comandi')}`,
-        ...COMMANDS.map(([c, d]) => `    ${fit(T.accent(c), 16)}${T.muted(d)}`),
+        `  ${T.bold(t('Comandi'))}`,
+        ...COMMANDS().map(([c, d]) => `    ${fit(T.accent(c), 16)}${T.muted(d)}`),
         '',
-        `  ${T.bold('Navigazione')}`,
-        k('PagSu / PagGiù', 'Scorre i risultati (anche rotella del mouse)'),
-        k('↑ / ↓', 'Comandi precedenti'),
-        k('Esc', 'Cancella la riga · chiude il menu'),
-        k('Ctrl+L', 'Pulisce lo schermo'),
-        k('Ctrl+C', 'Esce (con la riga vuota)'),
+        `  ${T.bold(t('Navigazione'))}`,
+        k(t('PagSu / PagGiù'), t('Scorre i risultati (anche rotella del mouse)')),
+        k('↑ / ↓', t('Comandi precedenti')),
+        k('Esc', t('Cancella la riga · chiude il menu')),
+        k('Ctrl+L', t('Pulisce lo schermo')),
+        k('Ctrl+C', t('Esce (con la riga vuota)')),
         '',
-        `  ${T.bold('Punteggio')}  ${T.muted('100 = sicuro · 1 = malevolo')}`,
-        `    ${T.safe('■ 90–100 Sicuro')}   ${T.low('■ 70–89 Basso rischio')}   ${T.medium('■ 40–69 Sospetto')}   ${T.high('■ 15–39 Pericoloso')}   ${T.critical(' 1–14 Malevolo ')}`,
+        `  ${T.bold(t('Punteggio'))}  ${T.muted(t('100 = sicuro · 1 = malevolo'))}`,
+        `    ${T.safe('■ 90–100 ' + t('Sicuro'))}   ${T.low('■ 70–89 ' + t('Basso rischio'))}   ${T.medium('■ 40–69 ' + t('Sospetto'))}   ${T.high('■ 15–39 ' + t('Pericoloso'))}   ${T.critical(' 1–14 ' + t('Malevolo') + ' ')}`,
       ],
     };
   }
 
   resultLine(r, W) {
     const idx = T.faint(('#' + r.n).padStart(4));
-    if (r.status === 'scanning') return `  ${idx}  ${T.accent(SPIN[this.frame % SPIN.length])} ${T.muted('in analisi'.padEnd(17))} ${fit(T.text(r.name), Math.max(10, W - 34))}`;
-    if (r.status === 'error') return `  ${idx}  ${T.warn('!')} ${T.warn('errore'.padEnd(17))} ${fit(T.text(r.name) + '  ' + T.faint(r.error), Math.max(10, W - 34))}`;
+    if (r.status === 'scanning') return `  ${idx}  ${T.accent(SPIN[this.frame % SPIN.length])} ${T.muted(t('in analisi').padEnd(17))} ${fit(T.text(r.name), Math.max(10, W - 34))}`;
+    if (r.status === 'error') return `  ${idx}  ${T.warn('!')} ${T.warn(t('errore').padEnd(17))} ${fit(T.text(r.name) + '  ' + T.faint(r.error), Math.max(10, W - 34))}`;
     const o = r.result.overall;
     const st = scoreStyle(o.score);
     const top = r.result.findings.find((f) => f.severity !== 'info');
@@ -564,17 +581,17 @@ class Tui {
     const lines = ['', fit(head, W),
       `  ${T.faint(('#' + r.n).padStart(4))}  ${st(' ' + String(o.score).padStart(3) + '/100 ')}  ${ui.bar(o.score, barW)}  ${st(o.verdict)}  ${T.faint(`${res.file.type.label} · ${res.file.sizeHuman} · ${ui.fmtDur(r.ms || res.durationMs || 0)}${res.cached ? ' · cache' : ''}`)}`];
     for (const l of wrap(o.advice, Math.max(20, W - 10))) lines.push(`        ${T.muted(l)}`);
-    const sevTag = { critical: T.critical(' CRIT '), high: T.high('ALTO  '), medium: T.medium('MEDIO '), low: T.low('BASSO ') };
+    const sevTag = { critical: T.critical(' ' + t('CRIT').slice(0, 5).padEnd(5)), high: T.high(t('ALTO').slice(0, 5).padEnd(6)), medium: T.medium(t('MEDIO').slice(0, 5).padEnd(6)), low: T.low(t('BASSO').slice(0, 5).padEnd(6)) };
     for (const f of issues.slice(0, 5)) lines.push(fit(`        ${sevTag[f.severity] || ''} ${T.text(f.title)} ${T.faint('· ' + f.category)}`, W));
-    if (issues.length > 5) lines.push(`        ${T.faint(`… altri ${issues.length - 5} problemi · /report ${r.n}`)}`);
-    if (!issues.length) lines.push(`        ${T.ok('✓')} ${T.muted('Nessun problema rilevato')}`);
+    if (issues.length > 5) lines.push(`        ${T.faint(t('… altri {n} problemi', { n: issues.length - 5 }) + ` · /report ${r.n}`)}`);
+    if (!issues.length) lines.push(`        ${T.ok('✓')} ${T.muted(t('Nessun problema rilevato'))}`);
     return lines;
   }
 
   folderBlock(g, W) {
     const done = g.items.filter((r) => r.status !== 'scanning').length;
     const lines = ['', fit(`  ${T.faint('›')} ${T.bold(path.basename(g.dir) + '/')}  ${T.faint(tilde(path.dirname(g.dir)) + '  ·  ' + g.total + ' file')}`, W)];
-    if (!g.total) { lines.push(`        ${T.warn('Nessun file da analizzare in questa cartella')}`); return lines; }
+    if (!g.total) { lines.push(`        ${T.warn(t('Nessun file da analizzare in questa cartella'))}`); return lines; }
     if (done < g.total) {
       const bw = Math.max(10, Math.min(40, W - 40));
       const n = Math.round((done / g.total) * bw);
@@ -583,12 +600,12 @@ class Tui {
     }
     const ok = g.items.filter((r) => r.status === 'done');
     const by = (l) => ok.filter((r) => r.result.overall.level === l).length;
-    lines.push(`        ${T.ok('✓')} ${T.text(ok.length + ' file analizzati')} ${T.faint('in ' + ui.fmtDur(g.ms || 0))}   ` +
-      [[by('safe'), T.safe, 'sicuri'], [by('low'), T.low, 'basso rischio'], [by('medium'), T.medium, 'sospetti'], [by('high'), T.high, 'pericolosi'], [by('critical'), T.critical, 'malevoli']].filter(([n]) => n).map(([n, st, l]) => st(`${n} ${l}`)).join(T.faint(' · ')));
+    lines.push(`        ${T.ok('✓')} ${T.text(t('{n} file analizzati', { n: ok.length }))} ${T.faint(t('in {d}', { d: ui.fmtDur(g.ms || 0) }))}   ` +
+      [[by('safe'), T.safe, '{n} sicuri'], [by('low'), T.low, '{n} basso rischio'], [by('medium'), T.medium, '{n} sospetti'], [by('high'), T.high, '{n} pericolosi'], [by('critical'), T.critical, '{n} malevoli']].filter(([n]) => n).map(([n, st, l]) => st(t(l, { n }))).join(T.faint(' · ')));
     const worst = [...g.items].filter((r) => r.status === 'error' || r.result.overall.score < 90).sort((a, b) => (a.result?.overall.score ?? 0) - (b.result?.overall.score ?? 0));
     for (const r of worst.slice(0, 8)) lines.push(this.resultLine(r, W));
-    if (worst.length > 8) lines.push(`        ${T.faint(`… altri ${worst.length - 8} · /elenco per vederli tutti`)}`);
-    if (!worst.length) lines.push(`        ${T.muted('Tutti i file risultano sicuri.')}`);
+    if (worst.length > 8) lines.push(`        ${T.faint(t('… altri {n} · {cmd} per vederli tutti', { n: worst.length - 8, cmd: cmdName('/elenco') }))}`);
+    if (!worst.length) lines.push(`        ${T.muted(t('Tutti i file risultano sicuri.'))}`);
     return lines;
   }
 
@@ -602,7 +619,7 @@ class Tui {
     const rows = [];
 
     // Header
-    const left = ` ${T.accentB('◆')} ${T.bold('Gauntler')} ${T.faint(core.VERSION)}  ${T.line('│')}  ${T.muted('Analisi di sicurezza dei file')}`;
+    const left = ` ${T.accentB('◆')} ${T.bold('Gauntler')} ${T.faint(core.VERSION)}  ${T.line('│')}  ${T.muted(t('Analisi di sicurezza dei file'))}`;
     const dot = (on, name) => `${on ? T.ok('●') : T.faint('○')} ${on ? T.muted(name) : T.faint(name)}`;
     const right = `${dot(this.env.clamav, 'ClamAV')}   ${dot(this.env.sevenZip, '7-Zip')}  `;
     const short = ` ${T.accentB('◆')} ${T.bold('Gauntler')} ${T.faint(core.VERSION)}`;
@@ -620,7 +637,7 @@ class Tui {
     const end = all.length - this.scroll;
     const view = all.slice(Math.max(0, end - bodyH), end).map((l) => fit(l, W));
     while (view.length < bodyH) view.push(' '.repeat(W));
-    if (this.scroll > 0) view[view.length - 1] = fit(`  ${T.accent('↓')} ${T.muted(`${this.scroll} righe sotto · PagGiù per tornare in fondo`)}`, W);
+    if (this.scroll > 0) view[view.length - 1] = fit(`  ${T.accent('↓')} ${T.muted(t('{n} righe sotto · PagGiù per tornare in fondo', { n: this.scroll }))}`, W);
     const top = rows.length;
 
     // Overlay: command suggestions (above the input)
@@ -640,7 +657,7 @@ class Tui {
     // Overlay: add menu (above the + button, at the left)
     if (this.menu) {
       const mw = 40;
-      const box = [T.line('╭' + '─'.repeat(mw - 2) + '╮'), `${T.line('│')} ${fit(T.bold('Aggiungi da analizzare'), mw - 4)} ${T.line('│')}`, T.line('├' + '─'.repeat(mw - 2) + '┤')];
+      const box = [T.line('╭' + '─'.repeat(mw - 2) + '╮'), `${T.line('│')} ${fit(T.bold(t('Aggiungi da analizzare')), mw - 4)} ${T.line('│')}`, T.line('├' + '─'.repeat(mw - 2) + '┤')];
       MENU.forEach((m, i) => {
         const on = i === this.menu.sel;
         const icon = m.id === 'file' ? '▤' : m.id === 'folder' ? '▣' : '›';
@@ -649,7 +666,7 @@ class Tui {
         box.push(`${T.line('│')} ${on ? T.sel(ui.strip(inner)) : T.text(cut(inner, 0, mw - 4 - m.hint.length)) + T.faint(m.hint)} ${T.line('│')}`);
       });
       box.push(T.line('├' + '─'.repeat(mw - 2) + '┤'));
-      box.push(`${T.line('│')} ${fit(T.faint('↑↓ scegli · Invio apri · Esc chiudi'), mw - 4)} ${T.line('│')}`);
+      box.push(`${T.line('│')} ${fit(T.faint(t('↑↓ scegli · Invio apri · Esc chiudi')), mw - 4)} ${T.line('│')}`);
       box.push(T.line('╰' + '─'.repeat(mw - 2) + '╯'));
       const start = Math.max(0, view.length - box.length);
       box.forEach((b, i) => {
@@ -666,8 +683,8 @@ class Tui {
     const fieldW = boxW - 2 - vlen(prompt) - 1;
     let shown = this.input, curX = this.cur;
     if (shown.length > fieldW) { const off = Math.max(0, Math.min(this.cur - fieldW + 1, shown.length - fieldW)); shown = shown.slice(off, off + fieldW); curX = this.cur - off; }
-    const placeholder = this.picking ? T.accent(SPIN[this.frame % SPIN.length] + ' Finestra di selezione aperta: scegli i file nel Finder…')
-      : T.faint('Trascina qui un file, digita un percorso o un /comando…');
+    const placeholder = this.picking ? T.accent(SPIN[this.frame % SPIN.length] + ' ' + t('Finestra di selezione aperta: scegli i file nel Finder…'))
+      : T.faint(t('Trascina qui un file, digita un percorso o un /comando…'));
     const field = this.input ? T.text(shown) : placeholder;
     const focus = this.menu ? T.line : T.accent;
     rows.push(' ' + focus('╭' + '─'.repeat(boxW - 2) + '╮'));
@@ -681,16 +698,16 @@ class Tui {
     if (this.flash) hint = { info: T.muted, warn: T.warn, err: T.err }[this.flash.kind](this.flash.text);
     else {
       const variants = [
-        `${T.muted('Aggiungi file')}   ${T.faint('·')}   ${T.faint('Invio analizza  ·  / comandi  ·  PagSu/PagGiù scorri  ·  Ctrl+C esci')}`,
-        `${T.muted('Aggiungi file')}   ${T.faint('·')}   ${T.faint('/ comandi  ·  Ctrl+C esci')}`,
-        T.muted('Aggiungi file'),
+        `${T.muted(t('Aggiungi file'))}   ${T.faint('·')}   ${T.faint(t('Invio analizza  ·  / comandi  ·  PagSu/PagGiù scorri  ·  Ctrl+C esci'))}`,
+        `${T.muted(t('Aggiungi file'))}   ${T.faint('·')}   ${T.faint(t('/ comandi  ·  Ctrl+C esci'))}`,
+        T.muted(t('Aggiungi file')),
       ];
       hint = variants.find((v) => vlen(v) + 30 <= W) || variants[2];
     }
     const ok = this.results.filter((r) => r.status === 'done');
     const risky = ok.filter((r) => r.result.overall.score < 40).length;
-    const stats = this.busy ? `${T.accent(SPIN[this.frame % SPIN.length])} ${T.muted(`${this.busy} in analisi`)}  `
-      : ok.length ? `${T.muted(ok.length + ' analizzati')}${risky ? '  ' + T.err('● ' + risky + ' a rischio') : '  ' + T.ok('●')}  ` : '';
+    const stats = this.busy ? `${T.accent(SPIN[this.frame % SPIN.length])} ${T.muted(t('{n} in analisi', { n: this.busy }))}  `
+      : ok.length ? `${T.muted(t('{n} analizzati', { n: ok.length }))}${risky ? '  ' + T.err('● ' + t('{n} a rischio', { n: risky })) : '  ' + T.ok('●')}  ` : '';
     const footL = ' ' + plus + '  ' + hint;
     rows.push(vlen(footL) + vlen(stats) + 1 <= W ? footL + ' '.repeat(W - vlen(footL) - vlen(stats)) + stats : fit(footL, W));
 
@@ -704,11 +721,15 @@ class Tui {
 }
 
 function run(opts = {}) {
-  if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('L\'interfaccia interattiva richiede un terminale. Usa: gauntler <file> (vedi gauntler --help)');
-  const t = new Tui();
-  t.firstRun = opts.firstRun || null;
-  process.on('uncaughtException', (e) => { t.restore(); console.error(ui.c.red('✖ ' + (e.stack || e.message))); process.exit(3); });
-  return t.start();
+  if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error(t('L\'interfaccia interattiva richiede un terminale. Usa: gauntler <file> (vedi gauntler --help)'));
+  const tui = new Tui();
+  tui.firstRun = opts.firstRun || null;
+  process.on('uncaughtException', (e) => { tui.restore(); console.error(ui.c.red('✖ ' + (e.stack || e.message))); process.exit(3); });
+  return tui.start();
 }
 
-module.exports = { run, parsePaths, tokenize, cut, summary: 'Interfaccia interattiva a schermo intero (predefinita senza argomenti)', HELP: `\n${ui.c.bold('gauntler shell')}\n\nApre l'interfaccia interattiva: aggiungi file con il pulsante + in basso a sinistra (o Tab),\ntrascinandoli nella finestra o digitandone il percorso. Si avvia anche con "gauntler" senza argomenti.\n` };
+module.exports = {
+  run, parsePaths, tokenize, cut,
+  get summary() { return t('Interfaccia interattiva a schermo intero (predefinita senza argomenti)'); },
+  get HELP() { return `\n${ui.c.bold('gauntler shell')}\n\n${t('Apre l\'interfaccia interattiva: aggiungi file con il pulsante + in basso a sinistra (o Tab),\ntrascinandoli nella finestra o digitandone il percorso. Si avvia anche con "gauntler" senza argomenti.')}\n`; },
+};

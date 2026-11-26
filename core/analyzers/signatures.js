@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -71,7 +72,7 @@ module.exports = {
   knownCount: () => Object.keys(KNOWN).length + Object.keys(CUSTOM || (CUSTOM = loadCustomHashes())).length,
   id: 'signatures',
   name: 'Firme malware',
-  description: `Impronte di malware noti + ${RULES.length} regole in stile YARA (famiglie di ransomware, RAT, stealer, botnet, webshell, exploit, tecniche MITRE ATT&CK) applicate a ogni riga del file e a ogni contenuto decodificato.`,
+  description: msg('Impronte di malware noti + {n} regole in stile YARA (famiglie di ransomware, RAT, stealer, botnet, webshell, exploit, tecniche MITRE ATT&CK) applicate a ogni riga del file e a ogni contenuto decodificato.', { n: RULES.length }),
   weight: 3,
   textual: true,
   applies: () => true,
@@ -104,23 +105,23 @@ module.exports = {
     const checks = [];
     const h = ctx.hashes;
     const known = KNOWN[h.sha256] || CUSTOM[h.sha256] || CUSTOM[h.sha1] || CUSTOM[h.md5];
-    checks.push({ name: 'Impronta SHA-256/SHA-1/MD5 nel database dei malware noti', ok: !known, note: `${Object.keys(KNOWN).length + Object.keys(CUSTOM).length} impronte` });
-    if (known) out.push({ severity: 'critical', title: 'Impronta di malware conosciuto', detail: `L'impronta del file corrisponde a: ${known}.`, forceScore: known.includes('EICAR') ? 5 : 1 });
+    checks.push({ name: 'Impronta SHA-256/SHA-1/MD5 nel database dei malware noti', ok: !known, note: msg('{n} impronte', { n: Object.keys(KNOWN).length + Object.keys(CUSTOM).length }) });
+    if (known) out.push({ severity: 'critical', title: 'Impronta di malware conosciuto', detail: msg('L\'impronta del file corrisponde a: {known}.', { known }), forceScore: known.includes('EICAR') ? 5 : 1 });
 
     for (const cs of COMPILED) {
       const r = st.rules.get(cs.rule.id);
       const triggered = r && r.matched.size >= cs.need && !(cs.rule.id === 'Process_Injection_Strings' && ctx.type.family === 'executable');
-      checks.push({ name: `${cs.rule.family}: ${cs.rule.id}`, ok: !triggered, note: r ? `${r.matched.size}/${cs.strings.length} indicatori (servono ${cs.need})` : `0/${cs.strings.length} indicatori` });
+      checks.push({ name: msg('{family}: {id}', { family: cs.rule.family, id: cs.rule.id }), ok: !triggered, note: r ? msg('{a}/{b} indicatori (servono {need})', { a: r.matched.size, b: cs.strings.length, need: cs.need }) : msg('{a}/{b} indicatori', { a: 0, b: cs.strings.length }) });
       if (!triggered) continue;
       const hidden = r.occ.some((o) => o.decoded) && r.occ.every((o) => o.decoded);
       let sev = cs.rule.severity;
       if (hidden && sev === 'medium') sev = 'high';
-      const tag = { id: 'sig:' + cs.rule.id, sev, label: cs.rule.family, desc: cs.rule.desc, group: 'Firma ' + cs.rule.id };
+      const tag = { id: 'sig:' + cs.rule.id, sev, label: cs.rule.family, desc: cs.rule.desc, group: msg('Firma {id}', { id: cs.rule.id }) };
       for (const o of r.occ) ctx.annotate(o.loc, o.text, tag);
       out.push({
         severity: sev,
-        title: `${hidden ? 'Nascosto — ' : ''}${cs.rule.family}: ${cs.rule.id}`,
-        detail: `${cs.rule.desc} ${r.occ.length} occorrenz${r.occ.length === 1 ? 'a trovata' : 'e trovate'}${hidden ? ' dentro contenuti codificati' : ''}.`,
+        title: hidden ? msg('Nascosto — {family}: {id}', { family: cs.rule.family, id: cs.rule.id }) : msg('{family}: {id}', { family: cs.rule.family, id: cs.rule.id }),
+        detail: msg(r.occ.length === 1 ? (hidden ? '{desc} {n} occorrenza trovata dentro contenuti codificati.' : '{desc} {n} occorrenza trovata.') : (hidden ? '{desc} {n} occorrenze trovate dentro contenuti codificati.' : '{desc} {n} occorrenze trovate.'), { desc: cs.rule.desc, n: r.occ.length }),
         evidence: r.samples,
         loc: r.occ[0].loc,
         locs: r.occ.map((o) => o.loc),

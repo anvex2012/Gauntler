@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const { findAll, luhn, ibanValid, mask, truncate, isDoc } = require('../utils');
 
 const CF_MONTH = 'ABCDEHLMPRST';
@@ -67,12 +68,12 @@ module.exports = {
     for (const d of DETECTORS) {
       const set = st.sets[d.id];
       const n = set ? set.size : 0;
-      checks.push({ name: `Ricerca: ${d.name}`, ok: n < (d.min || 1), note: `${n}` });
+      checks.push({ name: msg('Ricerca: {name}', { name: d.name }), ok: n < (d.min || 1), note: `${n}` });
       if (!n) continue;
       info[d.name] = n;
       if (n < (d.min || 1)) continue;
       const sv = d.sev(n);
-      out.push({ severity: doc && ['email', 'phone_intl', 'phone_it'].includes(d.id) ? 'info' : sv, title: `${d.name} (${n})`, detail: `${n} valor${n === 1 ? 'e' : 'i'} unic${n === 1 ? 'o' : 'i'}${d.valid ? ' con verifica di validità superata' : ''}, ${st.locs[d.id].length} occorrenze.`, evidence: [...set].slice(0, 5).map(mask), loc: st.locs[d.id][0], locs: st.locs[d.id] });
+      out.push({ severity: doc && ['email', 'phone_intl', 'phone_it'].includes(d.id) ? 'info' : sv, title: msg('{name} ({n})', { name: d.name, n }), detail: msg(n === 1 ? (d.valid ? '{n} valore unico con verifica di validità superata, {occ} occorrenze.' : '{n} valore unico, {occ} occorrenze.') : (d.valid ? '{n} valori unici con verifica di validità superata, {occ} occorrenze.' : '{n} valori unici, {occ} occorrenze.'), { n, occ: st.locs[d.id].length }), evidence: [...set].slice(0, 5).map(mask), loc: st.locs[d.id][0], locs: st.locs[d.id] });
     }
     return { findings: out, checks, info };
   },

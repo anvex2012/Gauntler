@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 const { findAll, truncate, strEntropy, isDoc: isDocName } = require('../utils');
 const isDoc = (ctx) => isDocName(ctx.name);
 
@@ -91,7 +92,7 @@ module.exports = {
       const tokens = h.split(/[-.]/);
       const reg = registrable(h);
       const brand = BRANDS.find((b) => tokens.includes(b) && reg !== b && tokens[tokens.length - 1] !== b) && (LURE_WORDS.test(h) || BAD_TLD.test(h) || /\d/.test(reg)) ? BRANDS.find((b) => tokens.includes(b)) : null;
-      if (brand && !LEGIT_BRAND_HOST.test(h) && !EXAMPLE.test(h)) flag('brand', loc, u, line, { id: 'net:brand', sev: 'medium', label: 'Imitazione di un marchio', desc: `Il dominio contiene "${brand}" ma non è il sito ufficiale.` });
+      if (brand && !LEGIT_BRAND_HOST.test(h) && !EXAMPLE.test(h)) flag('brand', loc, u, line, { id: 'net:brand', sev: 'medium', label: 'Imitazione di un marchio', desc: msg('Il dominio contiene "{brand}" ma non è il sito ufficiale.', { brand }) });
       if (/^(http|ftp):\/\//i.test(u) && /(login|signin|account|password|verify|bank|pay)/i.test(u)) flag('plainlogin', loc, u, line, { id: 'net:plainlogin', sev: 'low', label: 'Login senza HTTPS', desc: 'Pagina di accesso non cifrata.' });
     }
     for (const m of findAll(t, IP_RE)) {
@@ -121,7 +122,7 @@ module.exports = {
           const key = coin + ' ' + m[0];
           const loc = unit.loc(m.index);
           if (!st.wallets.has(key)) st.wallets.set(key, loc);
-          ctx.annotate(loc, unit.lineText(m.index), { id: 'net:wallet', sev: 'low', label: `Wallet ${coin}`, desc: 'Indirizzo di criptovaluta.' });
+          ctx.annotate(loc, unit.lineText(m.index), { id: 'net:wallet', sev: 'low', label: msg('Wallet {coin}', { coin }), desc: 'Indirizzo di criptovaluta.' });
         }
       }
     }
@@ -133,7 +134,7 @@ module.exports = {
     const F = (k, sev, title, detail) => {
       const f = st.flags[k];
       if (doc || (ctx.type.family === 'executable' && st.binFlags.has(k))) sev = { high: 'medium', medium: 'low', low: 'info' }[sev];
-      if (f) out.push({ severity: sev, title: `${title} (${f.ev.size})`, detail, evidence: [...f.ev].slice(0, 8), loc: f.locs[0], locs: f.locs });
+      if (f) out.push({ severity: sev, title: msg('{title} ({n})', { title, n: f.ev.size }), detail, evidence: [...f.ev].slice(0, 8), loc: f.locs[0], locs: f.locs });
     };
     F('exeurl', 'high', 'Link per scaricare programmi', 'URL che puntano direttamente a eseguibili o script.');
     F('rawip', risky ? 'high' : 'medium', 'URL con indirizzo IP diretto', 'Connessioni a IP pubblici senza nome di dominio (tipico dei server di comando malware).');
@@ -146,9 +147,9 @@ module.exports = {
     F('iplookup', 'low', 'Servizi di rilevamento IP', 'Il file scopre l\'indirizzo IP pubblico (tipico di stealer).');
     F('short', 'low', 'Link accorciati', 'URL abbreviati che nascondono la vera destinazione.');
     F('plainlogin', 'low', 'Pagine di login senza HTTPS', 'Credenziali inviate in chiaro.');
-    if (st.onions.size) out.push({ severity: 'high', title: `Indirizzi della rete Tor (${st.onions.size})`, detail: 'Riferimenti al dark web, tipici di ransomware e C2.', evidence: [...st.onions.keys()].slice(0, 6), loc: [...st.onions.values()][0], locs: [...st.onions.values()] });
-    if (st.wallets.size) out.push({ severity: risky ? 'medium' : 'info', title: `Indirizzi di wallet di criptovalute (${st.wallets.size})`, detail: risky ? 'Possibile richiesta di riscatto o clipper che sostituisce indirizzi.' : 'Presenti indirizzi di wallet.', evidence: [...st.wallets.keys()].slice(0, 5).map((w) => truncate(w, 70)), loc: [...st.wallets.values()][0], locs: [...st.wallets.values()] });
-    if (st.ips.size && ctx.type.family === 'executable') out.push({ severity: 'low', title: `Indirizzi IP pubblici incorporati (${st.ips.size})`, detail: 'L\'eseguibile contiene IP pubblici fissi.', evidence: [...st.ips.keys()].slice(0, 10), loc: [...st.ips.values()][0], locs: [...st.ips.values()] });
+    if (st.onions.size) out.push({ severity: 'high', title: msg('Indirizzi della rete Tor ({n})', { n: st.onions.size }), detail: 'Riferimenti al dark web, tipici di ransomware e C2.', evidence: [...st.onions.keys()].slice(0, 6), loc: [...st.onions.values()][0], locs: [...st.onions.values()] });
+    if (st.wallets.size) out.push({ severity: risky ? 'medium' : 'info', title: msg('Indirizzi di wallet di criptovalute ({n})', { n: st.wallets.size }), detail: risky ? 'Possibile richiesta di riscatto o clipper che sostituisce indirizzi.' : 'Presenti indirizzi di wallet.', evidence: [...st.wallets.keys()].slice(0, 5).map((w) => truncate(w, 70)), loc: [...st.wallets.values()][0], locs: [...st.wallets.values()] });
+    if (st.ips.size && ctx.type.family === 'executable') out.push({ severity: 'low', title: msg('Indirizzi IP pubblici incorporati ({n})', { n: st.ips.size }), detail: 'L\'eseguibile contiene IP pubblici fissi.', evidence: [...st.ips.keys()].slice(0, 10), loc: [...st.ips.values()][0], locs: [...st.ips.values()] });
     const checks = [
       ['Link diretti a eseguibili', 'exeurl'], ['URL con IP pubblico', 'rawip'], ['URL con @ ingannevole', 'userinfo'], ['Imitazione di marchi', 'brand'],
       ['Domini punycode', 'punycode'], ['Domini DGA', 'dga'], ['Servizi abusati', 'abused'], ['TLD ad alto rischio', 'badtld'], ['Rilevamento IP', 'iplookup'],

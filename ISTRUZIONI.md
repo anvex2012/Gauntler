@@ -28,6 +28,20 @@ In entrambi i casi, **dopo il primo avvio il comando `gauntler` funziona da qual
 
 ---
 
+## Lingua
+
+Gauntler è disponibile in **italiano, inglese, spagnolo, francese e tedesco** (interfaccia, terminale e risultati delle analisi).
+
+- **Al primo utilizzo** (app o terminale) viene chiesto di scegliere la lingua; la scelta vale per entrambi.
+- **Per cambiarla dopo:**
+  - app: **Impostazioni → Aspetto → Lingua** (anche i risultati già mostrati vengono tradotti subito);
+  - terminale: `gauntler language` (scelta interattiva) oppure `gauntler language en`;
+  - interfaccia interattiva: `/lingua en`;
+  - per una sola esecuzione: `gauntler --lang fr file.pdf`.
+- La lingua è salvata in `~/.gauntler/config.json` (chiave `language`).
+
+---
+
 ## 1. Installazione dal terminale (zip da GitHub)
 
 ### Requisiti

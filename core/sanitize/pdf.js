@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { t } = require('../i18n');
 /**
  * PDF Content Disarm & Reconstruction.
  *
@@ -190,7 +191,7 @@ function expandObjectStreams(objs) {
     const type = o.value.v.get('Type');
     if (!type || type.v !== 'ObjStm') continue;
     const data = decodeStream(o.value, o.stream);
-    if (!data) throw new Error(`object stream ${o.num} con filtro non supportato`);
+    if (!data) throw new Error(t('object stream {n} con filtro non supportato', { n: o.num }));
     const N = +(o.value.v.get('N') || { v: 0 }).v, first = +(o.value.v.get('First') || { v: 0 }).v;
     const hp = new Parser(data, 0, first);
     const pairs = [];
@@ -216,7 +217,7 @@ function disarm(buf, { stripLinks = false } = {}) {
   const count = {};
   const note = (k) => { count[k] = (count[k] || 0) + 1; };
   const expanded = expandObjectStreams(objs);
-  if (expanded) actions.push(`Estratti ${expanded} oggetti da object stream compressi`);
+  if (expanded) actions.push(t('Estratti {n} oggetti da object stream compressi', { n: expanded }));
 
   // Trailer: last classic trailer, or the dictionary of the last cross-reference stream
   let trailer = trailers.length ? trailers[trailers.length - 1] : null;
@@ -300,9 +301,9 @@ function disarm(buf, { stripLinks = false } = {}) {
   if (trailer.v.get('Info')) tr.set('Info', trailer.v.get('Info'));
   parts.push(Buffer.from(lines.join('\n') + `\ntrailer\n${ser({ t: 'dict', v: tr })}\nstartxref\n${pos}\n%%EOF\n`, 'latin1'));
   const tail = buf.lastIndexOf('%%EOF');
-  if (tail >= 0 && buf.length - tail > 64) actions.push(`Eliminati ${buf.length - tail - 5} byte nascosti dopo la fine del documento`);
-  if (trailers.length > 1) actions.push(`Unite ${trailers.length} revisioni (aggiornamenti incrementali) in una sola`);
-  actions.push(`Documento ricostruito: ${nums.length} oggetti, nuova tabella xref`);
+  if (tail >= 0 && buf.length - tail > 64) actions.push(t('Eliminati {n} byte nascosti dopo la fine del documento', { n: buf.length - tail - 5 }));
+  if (trailers.length > 1) actions.push(t('Unite {n} revisioni (aggiornamenti incrementali) in una sola', { n: trailers.length }));
+  actions.push(t('Documento ricostruito: {n} oggetti, nuova tabella xref', { n: nums.length }));
   return { output: Buffer.concat(parts), actions, removed: Object.values(count).reduce((a, b) => a + b, 0) };
 }
 

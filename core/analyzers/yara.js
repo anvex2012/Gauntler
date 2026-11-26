@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('../i18n');
 /**
  * Real YARA rules (if the `yara` binary is installed): the rules from ~/.gauntler/yara and from
  * the "yara" folders in the configuration / --yara option. Thousands of community rules can be used
@@ -59,7 +60,7 @@ module.exports = {
   run(ctx) {
     const bin = yaraBin();
     const files = ruleFiles(ctx.options.yara || []);
-    if (!bin) return { skipped: true, reason: `YARA non installato (brew install yara / apt install yara) — ${files.length} file di regole pronti`, findings: [], checks: [] };
+    if (!bin) return { skipped: true, reason: msg('YARA non installato (brew install yara / apt install yara) — {n} file di regole pronti', { n: files.length }), findings: [], checks: [] };
     let target = ctx.path, tmp = null;
     if (!target || ctx.virtual) {
       tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'gauntler-y-')), 'sample.bin');
@@ -69,16 +70,16 @@ module.exports = {
     return new Promise((resolve) => {
       execFile(bin, ['-w', '-s', '-g', '-m', '-p', '4', ...files, target], { timeout: 10 * 60 * 1000, maxBuffer: 256 * 1024 * 1024 }, (err, stdout, stderr) => {
         if (tmp) fs.rmSync(path.dirname(tmp), { recursive: true, force: true });
-        if (err && !stdout) return resolve({ skipped: true, reason: 'Errore YARA: ' + String(stderr || err.message).split('\n')[0].slice(0, 200), findings: [], checks: [] });
+        if (err && !stdout) return resolve({ skipped: true, reason: msg('Errore YARA: {msg}', { msg: String(stderr || err.message).split('\n')[0].slice(0, 200) }), findings: [], checks: [] });
         const ms = parse(String(stdout));
         const out = ms.map((m) => {
           const sevMeta = (m.meta.match(/severity="?(\w+)/i) || [])[1] || (m.meta.match(/score="?(\d+)/i) || [])[1];
           const desc = (m.meta.match(/description="([^"]+)"/i) || [])[1];
           let sev = 'high';
           if (sevMeta) sev = /^\d+$/.test(sevMeta) ? (+sevMeta >= 75 ? 'critical' : +sevMeta >= 50 ? 'high' : +sevMeta >= 30 ? 'medium' : 'low') : ({ critical: 'critical', high: 'high', medium: 'medium', low: 'low', info: 'info' }[sevMeta.toLowerCase()] || 'high');
-          return { id: 'yara:' + m.rule, severity: sev, title: `YARA: ${m.rule}`, detail: desc || `Regola YARA corrispondente${m.tags.length ? ' (' + m.tags.join(', ') + ')' : ''}.`, evidence: m.strings.slice(0, 6).map((s) => `0x${s.offset.toString(16)} ${s.id}: ${s.data}`), loc: m.strings[0] ? { offset: m.strings[0].offset } : undefined, locs: m.strings.map((s) => ({ offset: s.offset })) };
+          return { id: 'yara:' + m.rule, severity: sev, title: `YARA: ${m.rule}`, detail: desc || (m.tags.length ? msg('Regola YARA corrispondente ({tags}).', { tags: m.tags.join(', ') }) : 'Regola YARA corrispondente.'), evidence: m.strings.slice(0, 6).map((s) => `0x${s.offset.toString(16)} ${s.id}: ${s.data}`), loc: m.strings[0] ? { offset: m.strings[0].offset } : undefined, locs: m.strings.map((s) => ({ offset: s.offset })) };
         });
-        resolve({ findings: out, checks: [{ name: `Regole YARA (${files.length} file)`, ok: !out.length, note: `${out.length} corrispondenze` }], info: { 'File di regole': files.length, 'Regole attivate': out.length } });
+        resolve({ findings: out, checks: [{ name: msg('Regole YARA ({n} file)', { n: files.length }), ok: !out.length, note: msg('{n} corrispondenze', { n: out.length }) }], info: { 'File di regole': files.length, 'Regole attivate': out.length } });
       });
     });
   },

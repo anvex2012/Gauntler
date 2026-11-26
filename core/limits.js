@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { m: msg } = require('./i18n');
 /**
  * Decompression limits (protection against ZIP bombs and every other "decompression bomb").
  *
@@ -73,15 +74,15 @@ class Budget {
   explainCap(compressedSize, cap, where) {
     const L = this.limits;
     const ratioCap = compressedSize > 0 ? Math.floor(Math.max(L.ratioMinBytes, compressedSize * L.maxRatio)) : Infinity;
-    if (ratioCap <= cap) return this.trip('ratio', `Rapporto di compressione oltre ${L.maxRatio}:1 (${fmt(compressedSize)} compressi → più di ${fmt(cap)}).`, where);
-    if (this.remaining() <= cap) return this.trip('total', `Dati decompressi oltre il limite totale di ${fmt(L.maxTotalBytes)}.`, where);
-    return this.trip('entry', `Un singolo oggetto decompresso supera ${fmt(L.maxEntryBytes)}.`, where);
+    if (ratioCap <= cap) return this.trip('ratio', msg('Rapporto di compressione oltre {max}:1 ({c} compressi → più di {cap}).', { max: L.maxRatio, c: fmt(compressedSize), cap: fmt(cap) }), where);
+    if (this.remaining() <= cap) return this.trip('total', msg('Dati decompressi oltre il limite totale di {max}.', { max: fmt(L.maxTotalBytes) }), where);
+    return this.trip('entry', msg('Un singolo oggetto decompresso supera {max}.', { max: fmt(L.maxEntryBytes) }), where);
   }
 
   /** Registers one file extracted from an archive */
   admitFile(where) {
     if (this.exceeded) return false;
-    if (this.files + 1 > this.limits.maxFiles) return this.trip('files', `Più di ${this.limits.maxFiles} file estratti dagli archivi.`, where);
+    if (this.files + 1 > this.limits.maxFiles) return this.trip('files', msg('Più di {n} file estratti dagli archivi.', { n: this.limits.maxFiles }), where);
     this.files++;
     return true;
   }
@@ -90,9 +91,9 @@ class Budget {
   consume(n, where, compressedSize = 0) {
     if (this.exceeded) return false;
     const L = this.limits;
-    if (n > L.maxEntryBytes) return this.trip('entry', `Un singolo oggetto decompresso (${fmt(n)}) supera ${fmt(L.maxEntryBytes)}.`, where);
-    if (compressedSize > 0 && n > L.ratioMinBytes && n / compressedSize > L.maxRatio) return this.trip('ratio', `Rapporto di compressione ${Math.round(n / compressedSize)}:1 oltre il limite di ${L.maxRatio}:1.`, where);
-    if (this.totalBytes + n > L.maxTotalBytes) return this.trip('total', `Dati decompressi oltre il limite totale di ${fmt(L.maxTotalBytes)}.`, where);
+    if (n > L.maxEntryBytes) return this.trip('entry', msg('Un singolo oggetto decompresso ({size}) supera {max}.', { size: fmt(n), max: fmt(L.maxEntryBytes) }), where);
+    if (compressedSize > 0 && n > L.ratioMinBytes && n / compressedSize > L.maxRatio) return this.trip('ratio', msg('Rapporto di compressione {r}:1 oltre il limite di {max}:1.', { r: Math.round(n / compressedSize), max: L.maxRatio }), where);
+    if (this.totalBytes + n > L.maxTotalBytes) return this.trip('total', msg('Dati decompressi oltre il limite totale di {max}.', { max: fmt(L.maxTotalBytes) }), where);
     this.totalBytes += n;
     return this.checkMemory(where);
   }
@@ -105,7 +106,7 @@ class Budget {
     const used = () => Math.max(this.totalBytes, memNow() - this.memBase);
     if (used() > this.limits.maxMemoryBytes) {
       if (global.gc) global.gc();
-      if (used() > this.limits.maxMemoryBytes) return this.trip('memory', `Memoria usata dall'analisi oltre ${fmt(this.limits.maxMemoryBytes)}.`, where);
+      if (used() > this.limits.maxMemoryBytes) return this.trip('memory', msg('Memoria usata dall\'analisi oltre {max}.', { max: fmt(this.limits.maxMemoryBytes) }), where);
     }
     return true;
   }

@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { t, t: tr } = require('../i18n');
 /**
  * Office Open XML (docx/docm, xlsx/xlsm, pptx/pptm) and OpenDocument disarm.
  * The package is rebuilt from scratch keeping only safe parts:
@@ -50,9 +51,9 @@ function disarm(buf, { keepMetadata = false } = {}) {
     if (e.name.endsWith('/')) continue;
     if (e.encrypted) throw new Error('documento protetto da password');
     const r = extract(buf, e);
-    if (!r.data) throw new Error(`parte illeggibile: ${e.name}`);
+    if (!r.data) throw new Error(t('parte illeggibile: {name}', { name: e.name }));
     const norm = e.name.replace(/\\/g, '/').replace(/^\/+/, '');
-    if (norm.split('/').includes('..')) { actions.push(`Rimossa parte con percorso anomalo: ${e.name}`); continue; }
+    if (norm.split('/').includes('..')) { actions.push(t('Rimossa parte con percorso anomalo: {name}', { name: e.name })); continue; }
     files.set(norm, r.data);
   }
   const dropped = new Set();
@@ -77,7 +78,7 @@ function disarm(buf, { keepMetadata = false } = {}) {
         const type = (rel.match(/\bType="([^"]*)"/) || [])[1] || '';
         const target = ((rel.match(/\bTarget="([^"]*)"/) || [])[1] || '').replace(/&amp;/g, '&');
         const external = /TargetMode="External"/i.test(rel);
-        if (external && (LOADING_REL.test(type) || BAD_SCHEME.test(target) || !/^(https?:|mailto:|#)/i.test(target))) { actions.push(`Rimosso riferimento esterno (${type.split('/').pop()}): ${target.slice(0, 120)}`); return ''; }
+        if (external && (LOADING_REL.test(type) || BAD_SCHEME.test(target) || !/^(https?:|mailto:|#)/i.test(target))) { actions.push(t('Rimosso riferimento esterno ({type}): {target}', { type: type.split('/').pop(), target: target.slice(0, 120) })); return ''; }
         if (external && BAD_SCHEME.test(target)) return '';
         if (!external && isDropped(owner, target)) return '';
         if (!external && LOADING_REL.test(type) && /vbaProject|activeX|oleObject|customUI|attachedToolbars/i.test(type)) return '';
@@ -89,8 +90,8 @@ function disarm(buf, { keepMetadata = false } = {}) {
       x = x.replace(/<Default\b[^>]*ContentType="application\/vnd\.ms-office\.(vbaProject|activeX)[^"]*"[^>]*\/>/g, '');
     } else {
       // DDE / include fields (Word), OLE objects and controls (all applications)
-      x = x.replace(/(<w:instrText\b[^>]*>)([^<]*)(<\/w:instrText>)/g, (m, a, t, b) => (/\b(DDE|DDEAUTO|INCLUDETEXT|INCLUDEPICTURE|IMPORT|LINK|QUOTE)\b/i.test(t) ? (actions.push(`Neutralizzato campo ${t.trim().split(/\s+/)[0]}`), a + b) : m));
-      x = x.replace(/(<w:fldSimple\b[^>]*\bw:instr=")([^"]*)(")/g, (m, a, t, b) => (/\b(DDE|DDEAUTO|INCLUDETEXT|INCLUDEPICTURE|LINK)\b/i.test(t) ? (actions.push(`Neutralizzato campo ${t.trim().split(/\s+/)[0]}`), a + b) : m));
+      x = x.replace(/(<w:instrText\b[^>]*>)([^<]*)(<\/w:instrText>)/g, (m, a, t, b) => (/\b(DDE|DDEAUTO|INCLUDETEXT|INCLUDEPICTURE|IMPORT|LINK|QUOTE)\b/i.test(t) ? (actions.push(tr('Neutralizzato campo {f}', { f: t.trim().split(/\s+/)[0] })), a + b) : m));
+      x = x.replace(/(<w:fldSimple\b[^>]*\bw:instr=")([^"]*)(")/g, (m, a, t, b) => (/\b(DDE|DDEAUTO|INCLUDETEXT|INCLUDEPICTURE|LINK)\b/i.test(t) ? (actions.push(tr('Neutralizzato campo {f}', { f: t.trim().split(/\s+/)[0] })), a + b) : m));
       x = x.replace(/<o:OLEObject\b[^>]*?(\/>|>[\s\S]*?<\/o:OLEObject>)/g, () => { actions.push('Rimosso riferimento a oggetto OLE'); return ''; });
       x = x.replace(/<(oleObjects|controls)\b[\s\S]*?<\/\1>/g, () => { actions.push('Rimossi oggetti/controlli dal foglio'); return ''; });
       x = x.replace(/<w:control\b[^>]*\/>/g, '');

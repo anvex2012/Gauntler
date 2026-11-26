@@ -1,5 +1,6 @@
 // Creato da anvex2012
 'use strict';
+const { t } = require('./i18n');
 const fs = require('fs');
 const { file, dir } = require('./paths');
 
@@ -17,6 +18,7 @@ const DEFAULTS = {
   yara: [],                // folders/files with YARA rules (in addition to ~/.gauntler/yara)
   online: { virustotal: '', malwarebazaar: '' }, // API keys (only the SHA-256 is sent)
   quarantineBelow: 15,     // in watch --quarantine: quarantine below this score
+  language: '',            // interface language (it, en, es, fr, de); empty = ask on first use
 };
 
 let cached = null;
@@ -59,7 +61,7 @@ function setPath(obj, key, value) {
 
 function get(key) { return key ? getPath(load(), key) : load(); }
 function set(key, value) {
-  if (!(key.split('.')[0] in DEFAULTS)) throw new Error(`Chiave sconosciuta: ${key}. Chiavi valide: ${Object.keys(DEFAULTS).join(', ')}`);
+  if (!(key.split('.')[0] in DEFAULTS)) throw new Error(t('Chiave sconosciuta: {key}. Chiavi valide: {list}', { key, list: Object.keys(DEFAULTS).join(', ') }));
   const u = userConfig();
   setPath(u, key, parseValue(value));
   saveUser(u);
@@ -67,7 +69,7 @@ function set(key, value) {
 function unset(key) { const u = userConfig(); setPath(u, key, undefined); saveUser(u); }
 function add(key, value) {
   const cur = get(key);
-  if (!Array.isArray(cur)) throw new Error(`"${key}" non è una lista`);
+  if (!Array.isArray(cur)) throw new Error(t('"{key}" non è una lista', { key }));
   if (cur.includes(value)) return false;
   const u = userConfig();
   setPath(u, key, [...cur, value]);
@@ -76,7 +78,7 @@ function add(key, value) {
 }
 function remove(key, value) {
   const cur = get(key);
-  if (!Array.isArray(cur)) throw new Error(`"${key}" non è una lista`);
+  if (!Array.isArray(cur)) throw new Error(t('"{key}" non è una lista', { key }));
   const u = userConfig();
   setPath(u, key, cur.filter((x) => x !== value));
   saveUser(u);
