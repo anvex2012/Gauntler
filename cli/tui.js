@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /*
  * Gauntler — interactive terminal interface (full screen, fixed layout).

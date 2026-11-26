@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Renders build/icon.svg into the app icons (run with: npx electron scripts/build-icon.js)
@@ -43,8 +43,8 @@ app.whenReady().then(async () => {
     }
     const r = spawnSync('iconutil', ['-c', 'icns', set, '-o', path.join(out, 'icon.icns')], { encoding: 'utf8' });
     fs.rmSync(set, { recursive: true, force: true });
-    console.log(r.status === 0 ? 'build/icon.icns creato' : 'iconutil non riuscito: ' + r.stderr);
+    console.log(r.status === 0 ? 'build/icon.icns created' : 'iconutil failed: ' + r.stderr);
   }
-  console.log('build/icon.png e src/assets/logo.png creati');
+  console.log('build/icon.png and src/assets/logo.png created');
   app.quit();
 });

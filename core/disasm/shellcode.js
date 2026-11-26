@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Shellcode finder for data that is NOT supposed to contain code (documents, images, decoded

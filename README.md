@@ -1,210 +1,215 @@
-<!-- Creato da anvex2012 -->
+<!-- Created by anvex2012 -->
 # Gauntler
 
-Analizzatore di sicurezza per **qualsiasi tipo di file**: app desktop (Electron + React) e tool da terminale.
-Tutta l'analisi è **locale**: nessun file viene inviato su Internet.
+Security analyzer for **any kind of file**: desktop app (Electron + React) and terminal tool.
+The whole analysis is **local**: no file is ever sent over the Internet.
 
-> **Installazione e uso passo per passo:** vedi [ISTRUZIONI.md](ISTRUZIONI.md).
+> **Step-by-step installation and usage:** see [INSTRUCTIONS.md](INSTRUCTIONS.md).
 >
-> **macOS:** scarica il `.dmg` dalle [Releases](https://github.com/anvex2012/Gauntler/releases/latest), trascina Gauntler in Applicazioni e aprilo: al primo avvio l'app installa da sola il comando `gauntler`, ClamAV e bsdtar.
+> **macOS:** download the `.dmg` from [Releases](https://github.com/anvex2012/Gauntler/releases/latest), drag Gauntler to Applications and open it: on first launch the app installs the `gauntler` command, ClamAV and bsdtar by itself.
 >
-> **Installazione da terminale (macOS e Linux, facoltativa):**
+> **Installation from the terminal (macOS and Linux, optional):**
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
 > ```
 
-Ogni file riceve un **punteggio generale da 1 a 100** (100 = sicuro) e un punteggio per ogni criterio.
+**Languages:** Italian, English, Spanish, French and German — app, terminal and analysis results. The language is chosen on first use and can be changed at any time (app: Settings → Appearance → Language; terminal: `gauntler language`).
 
-| Punteggio | Verdetto |
+Every file gets an **overall score from 1 to 100** (100 = safe) and a score for each criterion.
+
+| Score | Verdict |
 |---|---|
-| 90–100 | Sicuro |
-| 70–89 | Basso rischio |
-| 40–69 | Sospetto |
-| 15–39 | Pericoloso |
-| 1–14 | Malevolo |
+| 90–100 | Safe |
+| 70–89 | Low risk |
+| 40–69 | Suspicious |
+| 15–39 | Dangerous |
+| 1–14 | Malicious |
 
-## Analisi approfondita, senza limiti
+## In-depth analysis, no limits
 
-- **File di qualsiasi dimensione**: analisi a blocchi da 64 MB con sovrapposizione, 100% dei byte (anche file da diversi GB).
-- **Ogni riga, ogni parola**: oltre 200 indicatori applicati a ogni riga (o a ogni stringa estratta nei binari), con spiegazione per ogni riga segnalata.
-- **Nessun limite di occorrenze**: ogni corrispondenza viene riportata con la sua posizione (riga/offset).
-- **Decodifica ricorsiva**: base64, base64 MIME, data URI, hex, charcode, gzip/zlib, PowerShell `-EncodedCommand`, fino a 10 livelli annidati. Ogni payload decodificato viene rianalizzato da tutti i criteri.
-- **Estrazione profonda**: macro VBA decompresse (MS-OVBA), ogni flusso PDF decompresso (Flate/ASCIIHex/ASCII85) + testo visibile, parti XML di Office, oggetti RTF, allegati PDF, dati accodati a immagini.
-- **Archivi**: ZIP/JAR/APK (anche ZIP64 e protetti da password: oltre 30 password comuni + password personalizzate), TAR, GZIP, RAR/7z/ISO/CAB/PKG/XZ/BZ2 tramite 7-Zip/bsdtar. Ogni file interno viene analizzato con tutti i criteri, ricorsivamente (fino a 12 livelli, contro i "zip quine").
-- **Protezione dalle bombe di decompressione** (ZIP, ZIP annidati, voci sovrapposte, GZIP, flussi PDF, payload gzip/zlib codificati, 7-Zip/xz/bzip2): un unico budget per tutta l'analisi di un file, con limiti rigorosi — 256 MB per singolo oggetto, 1 GB decompresso in totale, rapporto di compressione 100:1 (oltre 16 MB), 10.000 file, 2 GB di memoria. Superato un limite, estrazione e analisi si interrompono subito e il file riceve una segnalazione critica. I limiti si cambiano con `"limits"` in `~/.gauntler/config.json` (`maxEntryBytes`, `maxTotalBytes`, `maxRatio`, `ratioMinBytes`, `maxFiles`, `maxMemoryBytes`). Gli archivi aperti con bsdtar vengono convertiti in un flusso tar letto in memoria con tetto esatto (nulla di decompresso finisce su disco); 7-Zip e unar estraggono su disco sotto sorveglianza continua e vengono fermati appena superano il limite.
-- **ClamAV senza limiti**: dimensione file, ricorsione, euristiche, macro, archivi cifrati.
+- **Files of any size**: analysis in 64 MB overlapping blocks, 100% of the bytes (even multi-GB files).
+- **Every line, every word**: over 200 indicators applied to every line (or to every string extracted from binaries), with an explanation for each flagged line.
+- **No occurrence limit**: every match is reported with its location (line/offset).
+- **Recursive decoding**: base64, MIME base64, data URIs, hex, charcodes, gzip/zlib, PowerShell `-EncodedCommand`, up to 10 nested levels. Every decoded payload is re-analyzed by all criteria.
+- **Deep extraction**: decompressed VBA macros (MS-OVBA), every decompressed PDF stream (Flate/ASCIIHex/ASCII85) + visible text, Office XML parts, RTF objects, PDF attachments, data appended to images.
+- **Archives**: ZIP/JAR/APK (including ZIP64 and password-protected: over 30 common passwords + custom passwords), TAR, GZIP, RAR/7z/ISO/CAB/PKG/XZ/BZ2 through 7-Zip/bsdtar. Every inner file is analyzed with all criteria, recursively (up to 12 levels, against "zip quines").
+- **Protection against decompression bombs** (ZIP, nested ZIPs, overlapping entries, GZIP, PDF streams, encoded gzip/zlib payloads, 7-Zip/xz/bzip2): a single budget for the whole analysis of a file, with strict limits — 256 MB per object, 1 GB decompressed in total, 100:1 compression ratio (above 16 MB), 10,000 files, 2 GB of memory. When a limit is exceeded, extraction and analysis stop immediately and the file gets a critical finding. Limits can be changed with `"limits"` in `~/.gauntler/config.json` (`maxEntryBytes`, `maxTotalBytes`, `maxRatio`, `ratioMinBytes`, `maxFiles`, `maxMemoryBytes`). Archives opened with bsdtar are converted into a tar stream read in memory with an exact cap (nothing decompressed touches the disk); 7-Zip and unar extract to disk under continuous monitoring and are stopped as soon as they exceed the limit.
+- **ClamAV with no limits**: file size, recursion, heuristics, macros, encrypted archives.
 
-## Criteri (17, ciascuno con punteggio 1–100)
+## Criteria (17, each scored 1–100)
 
-| Criterio | Cosa analizza |
+| Criterion | What it analyzes |
 |---|---|
-| Identità & camuffamento | contenuto reale vs estensione, doppie estensioni, RTLO, omoglifi, nomi-esca |
-| Firme malware | impronte note + 56 regole stile YARA (famiglie ransomware/RAT/stealer/botnet, webshell, exploit, tecniche MITRE) |
-| ClamAV | motore antivirus, se installato |
-| Eseguibile | PE/.NET, ELF, Mach-O: firma, imphash, info versione, finto Microsoft, packer, sezioni/segmenti, API, protezioni, entitlement |
-| Codice macchina | disassemblaggio x86/x86-64/ARM64, grafo del flusso di controllo, shellcode in qualsiasi file, hash di API, contenuti nascosti con XOR/ADD |
-| Documenti attivi | macro, XLM, JavaScript PDF, azioni automatiche, OLE, DDE, Follina, Equation Editor, LNK, OneNote, CHM |
-| Codice & offuscamento | 14 metriche di offuscamento pesate per densità, payload nascosti |
-| Riga per riga | oltre 200 indicatori in 20 categorie, Trojan Source, caratteri invisibili, omoglifi, statistiche delle parole |
-| Archivi & file incorporati | zip bomb, Zip Slip, link simbolici, cifratura, analisi ricorsiva |
-| Password & segreti | 78 rilevatori (cloud, AI, pagamenti, CI/CD, DB, hash di password…) + stringhe ad alta entropia |
-| Privacy | carte (Luhn), IBAN (mod-97), codice fiscale (carattere di controllo), P.IVA, documenti, dati sanitari |
-| Phishing | linguaggio di manipolazione (IT/EN), SPF/DKIM/DMARC, Reply-To, mittente falsificato |
-| Rete & IOC | URL, domini, IPv4/IPv6, .onion, wallet, DGA, punycode, imitazione di marchi |
-| Metadati | GPS/EXIF/XMP, autore Office/PDF, provenienza del download, permessi |
-| Regole YARA | regole YARA reali (motore ufficiale) da `~/.gauntler/yara`, se YARA è installato |
-| Reputazione online | VirusTotal + MalwareBazaar, solo con `--online` (invia solo l'impronta) |
-| Statistica | entropia, chi-quadro + p-value, Monte Carlo π, correlazione seriale, istogramma, file poliglotti |
+| Identity & disguise | real content vs extension, double extensions, RTLO, homoglyphs, bait names |
+| Malware signatures | known fingerprints + 56 YARA-style rules (ransomware/RAT/stealer/botnet families, webshells, exploits, MITRE techniques) |
+| ClamAV | antivirus engine, if installed |
+| Executable | PE/.NET, ELF, Mach-O: signature, imphash, version info, fake Microsoft, packers, sections/segments, APIs, protections, entitlements |
+| Machine code | x86/x86-64/ARM64 disassembly, control-flow graph, shellcode in any file, API hashes, content hidden with XOR/ADD |
+| Active documents | macros, XLM, PDF JavaScript, automatic actions, OLE, DDE, Follina, Equation Editor, LNK, OneNote, CHM |
+| Code & obfuscation | 14 density-weighted obfuscation metrics, hidden payloads |
+| Line by line | over 200 indicators in 20 categories, Trojan Source, invisible characters, homoglyphs, word statistics |
+| Archives & embedded files | zip bombs, Zip Slip, symbolic links, encryption, recursive analysis |
+| Passwords & secrets | 78 detectors (cloud, AI, payments, CI/CD, DB, password hashes…) + high-entropy strings |
+| Privacy | cards (Luhn), IBAN (mod-97), Italian tax code (check character), VAT numbers, documents, health data |
+| Phishing | manipulative language (IT/EN), SPF/DKIM/DMARC, Reply-To, forged sender |
+| Network & IOC | URLs, domains, IPv4/IPv6, .onion, wallets, DGA, punycode, brand impersonation |
+| Metadata | GPS/EXIF/XMP, Office/PDF author, download origin, permissions |
+| YARA rules | real YARA rules (official engine) from `~/.gauntler/yara`, if YARA is installed |
+| Online reputation | VirusTotal + MalwareBazaar, only with `--online` (sends only the fingerprint) |
+| Statistics | entropy, chi-square + p-value, Monte Carlo π, serial correlation, histogram, polyglot files |
 
-L'app mostra: panoramica con grafico radar, problemi filtrabili (con salto alla riga), **visualizzatore del codice riga per riga** (con evidenziazione, mappa di calore e spiegazioni), stringhe dei binari, elenco di tutti i controlli eseguiti (~200–300 per file), contenuti estratti e file interni (con report navigabile), indicatori di rete, metadati, hash, istogramma, vista esadecimale. Esporta il report in HTML, JSON, SARIF, CSV o Markdown.
+The app shows: overview with radar chart, filterable problems (with jump to the line), **line-by-line code viewer** (with highlighting, heat map and explanations), strings of binaries, list of all checks performed (~200–300 per file), extracted content and inner files (with navigable report), network indicators, metadata, hashes, histogram, hex view. The report can be exported as HTML, JSON, SARIF, CSV or Markdown.
 
-**Impostazioni** (icona ingranaggio o `⌘,`): tema chiaro/scuro/sistema, colore d'accento, colori dei livelli di rischio (standard, alto contrasto, per daltonici), dimensione dell'interfaccia, densità, carattere e dimensione del codice, animazioni; file analizzati in parallelo, vista dopo l'aggiunta, ordine dell'elenco, notifica al termine, password per archivi (ricordate solo su richiesta); scheda iniziale del report, segnalazioni informative, formato di esportazione predefinito. Scorciatoie: `⌘O` file, `⇧⌘O` cartella, `⌘F` cerca.
+**Settings** (gear icon or `⌘,`): language, light/dark/system theme, accent color, risk level colors (standard, high contrast, color-blind friendly), interface size, density, code font and size, animations; files analyzed in parallel, view after adding files, list order, notification when done, archive passwords (remembered only on request); report start tab, informational findings, default export format. Shortcuts: `⌘O` file, `⇧⌘O` folder, `⌘F` search.
 
-## Codice macchina: assembly e binario
+## Machine code: assembly and binary
 
-Gauntler contiene un disassemblatore proprio (nessuna dipendenza esterna), verificato contro `objdump`:
+Gauntler contains its own disassembler (no external dependencies), verified against `objdump`:
 
-- **x86 / x86-64**: prefissi, REX, VEX/EVEX, ModRM/SIB, indirizzamento RIP-relativo, mappe 0F/0F38/0F3A, x87 (lunghezze identiche a objdump su /bin/zsh: 125.000 istruzioni).
-- **ARM64**: salti, chiamate, PAC/BTI, syscall, MRS/MSR, ADR/ADRP, immediati logici, load/store e coppie.
-- **Discesa ricorsiva** dal punto di avvio, export, callback TLS e simboli → **grafo del flusso di controllo**: funzioni, blocchi di base, cicli (archi all'indietro con DFS), complessità ciclomatica, copertura del codice.
-- **Euristiche comportamentali** sul codice raggiungibile: GetPC (call/pop, fnstenv, jmp-call-pop), lettura del PEB/TEB, hashing dei nomi delle API (ROR/ROL), syscall dirette e stub Hell's Gate, cicli di auto-decifratura, stringhe costruite sullo stack, anti-debug (BeingDebugged, int 2d, ptrace PT_DENY_ATTACH), anti-VM (cpuid 0x40000000, backdoor VMware, Red Pill), NOP sled.
-- **Shellcode in qualsiasi file** (documenti, immagini, payload decodificati, `%u9090` nei JavaScript): ancore + disassemblaggio a 32 e 64 bit + punteggio su comportamenti indipendenti (0 falsi positivi su 512 MB di dati casuali).
+- **x86 / x86-64**: prefixes, REX, VEX/EVEX, ModRM/SIB, RIP-relative addressing, 0F/0F38/0F3A maps, x87 (lengths identical to objdump on /bin/zsh: 125,000 instructions).
+- **ARM64**: branches, calls, PAC/BTI, syscalls, MRS/MSR, ADR/ADRP, logical immediates, loads/stores and pairs.
+- **Recursive descent** from the entry point, exports, TLS callbacks and symbols → **control-flow graph**: functions, basic blocks, loops (back edges with DFS), cyclomatic complexity, code coverage.
+- **Behavioral heuristics** on reachable code: GetPC (call/pop, fnstenv, jmp-call-pop), PEB/TEB reads, API name hashing (ROR/ROL), direct syscalls and Hell's Gate stubs, self-decryption loops, stack strings, anti-debug (BeingDebugged, int 2d, ptrace PT_DENY_ATTACH), anti-VM (cpuid 0x40000000, VMware backdoor, Red Pill), NOP sleds.
+- **Shellcode in any file** (documents, images, decoded payloads, `%u9090` in JavaScript): anchors + 32- and 64-bit disassembly + scoring on independent behaviors (0 false positives on 512 MB of random data).
 
 ```bash
-gauntler disasm programma.exe            # assembly dal punto di avvio (con simboli e riferimenti)
-gauntler disasm programma.exe -b         # byte di ogni istruzione in binario (0/1)
-gauntler disasm /bin/ls -F               # funzioni: blocchi, cicli, complessità
-gauntler disasm documento.doc            # trova e disassembla lo shellcode nascosto
+gauntler disasm program.exe            # assembly from the entry point (with symbols and references)
+gauntler disasm program.exe -b         # bytes of each instruction in binary (0/1)
+gauntler disasm /bin/ls -F             # functions: blocks, loops, complexity
+gauntler disasm document.doc           # finds and disassembles hidden shellcode
 gauntler disasm payload.bin --raw --arch x64
-gauntler disasm file.bin --dump          # tutto il file in codice binario
+gauntler disasm file.bin --dump        # the whole file as binary code
 ```
 
-## Algoritmi
+## Algorithms
 
-| Algoritmo | Uso |
+| Algorithm | Use |
 |---|---|
-| Crittoanalisi differenziale XOR/ADD (`c[i]⊕c[i+L]` non dipende dalla chiave) | recupera chiavi ripetute fino a 32 byte da testo noto (stub PE, URL, nomi di API) e decifra il payload, che viene rianalizzato |
-| Dizionario di hash di API (ROR13, Metasploit block_api, CRC32, DJB2, SDBM, FNV-1a, ROL5/ROR7-XOR) | riconosce le costanti con cui shellcode e loader cercano le funzioni di Windows |
-| CTPH (spamsum/ssdeep), calcolo multi-livello in un solo passaggio | impronta "fuzzy" per riconoscere varianti dello stesso file |
-| DFS iterativa sul grafo del flusso | cicli, complessità ciclomatica, copertura |
-| Entropia, chi-quadro, Monte Carlo, correlazione seriale | statistica dei byte (già presenti) |
+| Differential XOR/ADD cryptanalysis (`c[i]⊕c[i+L]` does not depend on the key) | recovers repeating keys up to 32 bytes from known plaintext (PE stub, URLs, API names) and decrypts the payload, which is re-analyzed |
+| API hash dictionary (ROR13, Metasploit block_api, CRC32, DJB2, SDBM, FNV-1a, ROL5/ROR7-XOR) | recognizes the constants shellcode and loaders use to look up Windows functions |
+| CTPH (spamsum/ssdeep), multi-level computation in a single pass | "fuzzy" fingerprint to recognize variants of the same file |
+| Iterative DFS on the control-flow graph | loops, cyclomatic complexity, coverage |
+| Entropy, chi-square, Monte Carlo, serial correlation | byte statistics |
 
-## File resi sicuri (CDR: Content Disarm & Reconstruction)
+## Making files safe (CDR: Content Disarm & Reconstruction)
 
-`gauntler sanitize` non si limita a dare un voto: **ricostruisce** il file tenendo solo il contenuto sicuro, poi lo **ri-analizza con tutto il motore**. Se dopo il disarmo resta qualcosa di pericoloso, il file viene **bloccato** e non viene prodotto nulla.
+`gauntler sanitize` does more than give a score: it **rebuilds** the file keeping only the safe content, then **re-analyzes it with the whole engine**. If anything dangerous remains after disarming, the file is **blocked** and nothing is produced.
 
-| Tipo | Cosa viene rimosso |
+| Type | What is removed |
 |---|---|
-| PDF | JavaScript, `/OpenAction`, `/AA`, Launch, SubmitForm, ImportData, GoToE/R, RichMedia, allegati, XFA, dati dopo `%%EOF`; object stream espansi e file riscritto da zero con nuova xref (rendering identico) |
-| Word/Excel/PowerPoint (OOXML, ODF) | macro VBA e XLM, ActiveX, oggetti OLE, custom UI, collegamenti DDE, template remoti (template injection), schemi `mhtml:`/`file:`/`ms-*`, metadati personali; `.docm` → `.docx` |
-| .doc/.xls/.ppt (OLE) | progetto VBA, oggetti incorporati, Equation Editor (azzerati sul posto) |
-| RTF | `\object`, `\objdata`, `\datastore`, campi DDE/INCLUDE, dati dopo la fine |
-| HTML/SVG/XML | script, iframe, object/embed, gestori `on…`, URL `javascript:`/`data:`, `foreignObject`, meta refresh, destinazioni dei moduli |
-| JPEG/PNG/GIF/WebP/BMP | EXIF/GPS/XMP/commenti/blocchi sconosciuti, dati nascosti dopo la fine dell'immagine (poliglotti) |
-| Testo/CSV | caratteri bidirezionali (Trojan Source) e invisibili, formule CSV (`=`, `+`, `-`, `@`) |
-| Archivi (ZIP, TAR, GZIP, RAR, 7z) | ogni file disarmato ricorsivamente; eliminati file pericolosi, cifrati, link simbolici, percorsi `../` |
-| Programmi, script, immagini disco | non disarmabili: escono solo se l'analisi è pulita (`--strict`: mai) |
+| PDF | JavaScript, `/OpenAction`, `/AA`, Launch, SubmitForm, ImportData, GoToE/R, RichMedia, attachments, XFA, data after `%%EOF`; object streams expanded and file rewritten from scratch with a new xref (identical rendering) |
+| Word/Excel/PowerPoint (OOXML, ODF) | VBA and XLM macros, ActiveX, OLE objects, custom UI, DDE links, remote templates (template injection), `mhtml:`/`file:`/`ms-*` schemes, personal metadata; `.docm` → `.docx` |
+| .doc/.xls/.ppt (OLE) | VBA project, embedded objects, Equation Editor (zeroed in place) |
+| RTF | `\object`, `\objdata`, `\datastore`, DDE/INCLUDE fields, data after the end |
+| HTML/SVG/XML | scripts, iframes, object/embed, `on…` handlers, `javascript:`/`data:` URLs, `foreignObject`, meta refresh, form destinations |
+| JPEG/PNG/GIF/WebP/BMP | EXIF/GPS/XMP/comments/unknown chunks, data hidden after the end of the image (polyglots) |
+| Text/CSV | bidirectional (Trojan Source) and invisible characters, CSV formulas (`=`, `+`, `-`, `@`) |
+| Archives (ZIP, TAR, GZIP, RAR, 7z) | every file disarmed recursively; dangerous files, encrypted files, symbolic links, `../` paths removed |
+| Programs, scripts, disk images | cannot be disarmed: they are output only if the analysis is clean (`--strict`: never) |
 
 ```bash
-gauntler sanitize fattura.docm               # → fattura.safe.docx
-gauntler sanitize ~/Downloads -d ~/Sicuri    # cartella intera
-gauntler sanitize allegato.pdf --in-place    # sostituisce l'originale (che va in quarantena)
+gauntler sanitize invoice.docm               # → invoice.safe.docx
+gauntler sanitize ~/Downloads -d ~/Safe      # whole folder
+gauntler sanitize attachment.pdf --in-place  # replaces the original (which goes to quarantine)
 gauntler watch ~/Downloads --sanitize --quarantine
 ```
 
-I file prodotti non hanno mai il permesso di esecuzione e sono scritti in modo atomico. Nell'app: pulsante **Crea copia sicura** e scheda **Assembly**.
+Output files never have execute permission and are written atomically. In the app: **Create safe copy** button and **Assembly** tab.
 
-## Avvio
+## Getting started
 
 ```bash
 npm install
-npm run dev        # app con hot reload
-npm start          # build + avvio app
-npm test           # test su campioni generati (EICAR, dropper, PDF, ZIP…)
+npm run dev        # app with hot reload
+npm start          # build + start the app
+npm test           # tests on generated samples (EICAR, droppers, PDF, ZIP…)
 ```
 
-Puoi anche aprire file direttamente: `npx electron . file1 file2`
+You can also open files directly: `npx electron . file1 file2`
 
-**App desktop (macOS)**: `npm run package` crea `release/Gauntler.app` con nome e icona di Gauntler, firmata ad hoc; trascinala in Applicazioni e aprila con doppio clic. Al primo avvio, se macOS la blocca perché non viene da uno sviluppatore identificato: clic destro sull'app → Apri.
+**Desktop app (macOS)**: `npm run package` creates `release/Gauntler.app` with Gauntler's name and icon, ad-hoc signed; drag it to Applications and double-click it. On first launch, if macOS blocks it because it does not come from an identified developer: right-click the app → Open.
 
-**Comando da terminale `gauntler`**: si installa **da solo** al primo avvio, sia dai sorgenti (`node cli/gauntler.js`) sia aprendo l'app desktop; se serve aggiunge `~/.local/bin` al PATH in `~/.zshrc` (blocco marcato `# >>> gauntler >>>`). Si può anche installare a mano: dall'app, Impostazioni → Sistema → Installa; oppure `npm run install-cli`. Insieme al comando si installano anche **ClamAV** (con le firme antivirus in `~/.gauntler/clamav`) e **bsdtar**, se mancano: Homebrew o pacchetto ufficiale su macOS, gestore di pacchetti su Linux, winget/MSI su Windows. Si ripete con `gauntler setup`. Per disattivare l'installazione automatica: `GAUNTLER_NO_AUTOINSTALL=1`. Crea `~/.local/bin/gauntler` (senza sudo) che usa il motore incluso in Gauntler.app, quindi funziona anche senza Node.js. `gauntler app [file…]` apre l'app desktop con i file da analizzare; `gauntler uninstall-command` rimuove il comando.
+**`gauntler` terminal command**: it installs **itself** on first launch, both from the sources (`node cli/gauntler.js`) and when opening the desktop app; if needed it adds `~/.local/bin` to the PATH in `~/.zshrc` (block marked `# >>> gauntler >>>`). It can also be installed manually: from the app, Settings → System → Install; or `npm run install-cli`. Together with the command, **ClamAV** (with antivirus signatures in `~/.gauntler/clamav`) and **bsdtar** are installed if missing: Homebrew or the official package on macOS, the package manager on Linux, winget/MSI on Windows. Run it again with `gauntler setup`. To disable automatic installation: `GAUNTLER_NO_AUTOINSTALL=1`. It creates `~/.local/bin/gauntler` (no sudo) which uses the engine included in Gauntler.app, so it also works without Node.js. `gauntler app [file…]` opens the desktop app with the files to analyze; `gauntler uninstall-command` removes the command.
 
-**Pacchetti per la release**: `npm run release:build` crea in `release/upload/` il `.dmg` e lo `.zip` per macOS, lo `.zip` per Windows (cartella portatile con `Gauntler.exe`) e il `.tar.gz` per Linux, più `SHA256SUMS.txt`. Windows e Linux vengono preparati da macOS con `@electron/packager`, senza Wine. Il `.dmg` ha la finestra di installazione con sfondo e istruzioni (`build/dmg-background.png`, rigenerabile con `npx electron scripts/build-dmg-background.js`), creata con `dmgbuild` (Python 3, installato in automatico in `node_modules/.cache`).
+**Release packages**: `npm run release:build` creates in `release/upload/` the `.dmg` and `.zip` for macOS, the `.zip` for Windows (portable folder with `Gauntler.exe`) and the `.tar.gz` for Linux, plus `SHA256SUMS.txt`. Windows and Linux are packaged from macOS with `@electron/packager`, without Wine. The `.dmg` has an installation window with background and instructions (`build/dmg-background.png`, regenerated with `npx electron scripts/build-dmg-background.js`), created with `dmgbuild` (Python 3, installed automatically in `node_modules/.cache`).
 
-**Icona dell'app**: il disegno è in `build/icon.svg`; `npm run icon` rigenera `build/icon.png` (Windows/Linux), `build/icon.icns` (macOS) e il logo dell'interfaccia `src/assets/logo.png`.
+**App icon**: the drawing is in `build/icon.svg`; `npm run icon` regenerates `build/icon.png` (Windows/Linux), `build/icon.icns` (macOS) and the interface logo `src/assets/logo.png`.
 
-## Tool da terminale
+## Terminal tool
 
 ```bash
-npm link                     # installa il comando "gauntler"
-gauntler <file|cartella|->   # analizza (equivale a "gauntler scan")
-gauntler --help              # tutti i comandi · gauntler <comando> --help per i dettagli
+npm link                     # installs the "gauntler" command
+gauntler <file|folder|->     # analyzes (same as "gauntler scan")
+gauntler --help              # all commands · gauntler <command> --help for details
 ```
 
-| Comando | A cosa serve |
+| Command | What it does |
 |---|---|
-| `scan` | Analisi parallela (un thread per core) con cache, filtri, formati e codici di uscita per CI |
-| `sanitize` | Copia sicura dei file: disarmo e ricostruzione + verifica (CDR) |
-| `disasm` | Assembly x86/x64/ARM64, funzioni e complessità, codice binario |
-| `watch <cartella>` | Protezione in tempo reale: analizza ogni file nuovo (es. Download), notifiche, quarantena e copia sicura automatica (`--sanitize`) |
-| `quarantine list/add/restore/delete` | File resi innocui (XOR + sola lettura) e ripristinabili identici |
-| `history` | Cronologia delle analisi |
-| `config` | Configurazione in `~/.gauntler/config.json` |
-| `trust <file>` / `ignore <id>` | File attendibili · segnalazioni da ignorare (supporta `*`) |
-| `lookup <file>` | Reputazione su VirusTotal / MalwareBazaar (invia solo l'impronta SHA-256) |
-| `update` | Scarica le impronte di malware recenti da abuse.ch (serve Auth-Key gratuita) |
-| `hash`, `rules`, `cache`, `doctor`, `completion` | Impronte · regole del motore · cache · verifica ambiente · autocompletamento bash/zsh |
+| `scan` | Parallel analysis (one thread per core) with cache, filters, formats and exit codes for CI |
+| `sanitize` | Safe copy of files: disarm and rebuild + verification (CDR) |
+| `disasm` | x86/x64/ARM64 assembly, functions and complexity, binary code |
+| `watch <folder>` | Real-time protection: analyzes every new file (e.g. Downloads), notifications, quarantine and automatic safe copy (`--sanitize`) |
+| `quarantine list/add/restore/delete` | Files made harmless (XOR + read-only) and restorable byte for byte |
+| `history` | Analysis history |
+| `config` | Configuration in `~/.gauntler/config.json` |
+| `language [code]` | Language of the terminal and the app (it, en, es, fr, de) |
+| `trust <file>` / `ignore <id>` | Trusted files · findings to ignore (supports `*`) |
+| `lookup <file>` | VirusTotal / MalwareBazaar reputation (sends only the SHA-256 fingerprint) |
+| `update` | Downloads recent malware fingerprints from abuse.ch (free Auth-Key required) |
+| `hash`, `rules`, `cache`, `doctor`, `completion` | Fingerprints · engine rules · cache · environment check · bash/zsh completion |
 
-Opzioni principali di `scan`:
+Main `scan` options:
 
-| Opzione | |
+| Option | |
 |---|---|
-| `-q` / `-s` / `-v` / `-l` / `-c` | una riga per file / solo riepilogo / tutto / righe segnalate / controlli |
-| `-f text\|json\|sarif\|csv\|md\|html`, `-o file` | formato del report (dedotto dall'estensione di `-o`) |
-| `-x glob`, `-i glob`, `--max-size 50M` | esclusioni, inclusioni, dimensione massima |
-| `-j N`, `--timeout sec` | analisi in parallelo, tempo massimo per file |
-| `--only` / `--skip criteri` | scegli i criteri (`gauntler rules analyzers`) |
-| `-t N`, `--fail-on high` | exit code 1 sotto soglia o con problemi di quel livello |
-| `--quarantine [--quarantine-below N]` | sposta in quarantena i file malevoli |
-| `--online`, `--yara dir`, `-p password`, `--ids`, `--no-cache` | reputazione, regole YARA, password archivi, id segnalazioni, rianalisi |
+| `-q` / `-s` / `-v` / `-l` / `-c` | one line per file / summary only / everything / flagged lines / checks |
+| `-f text\|json\|sarif\|csv\|md\|html`, `-o file` | report format (inferred from the `-o` extension) |
+| `-x glob`, `-i glob`, `--max-size 50M` | exclusions, inclusions, maximum size |
+| `-j N`, `--timeout sec` | parallel analyses, maximum time per file |
+| `--only` / `--skip criteria` | choose the criteria (`gauntler rules analyzers`) |
+| `-t N`, `--fail-on high` | exit code 1 below the threshold or with problems of that level |
+| `--quarantine [--quarantine-below N]` | moves malicious files to quarantine |
+| `--online`, `--yara dir`, `-p password`, `--ids`, `--no-cache` | reputation, YARA rules, archive passwords, finding ids, re-analysis |
+| `--lang xx` | language for this run (it, en, es, fr, de) |
 
-Codici di uscita: `0` ok · `1` file sotto soglia / problemi · `2` uso errato · `3` errori di analisi.
+Exit codes: `0` ok · `1` files below threshold / problems · `2` wrong usage · `3` analysis errors.
 
-Esempi:
+Examples:
 
 ```bash
 gauntler ~/Downloads -q
 gauntler . -x "**/node_modules/**" -f sarif -o gauntler.sarif --fail-on high   # GitHub code scanning
-curl -s https://esempio.it/install.sh | gauntler - --name install.sh -l
+curl -s https://example.com/install.sh | gauntler - --name install.sh -l
 gauntler watch ~/Downloads --notify --quarantine
 gauntler config add passwords infected2024 && gauntler config add exclude "**/.git/**"
 ```
 
-## Configurazione e dati (`~/.gauntler`, oppure `GAUNTLER_HOME`)
+## Configuration and data (`~/.gauntler`, or `GAUNTLER_HOME`)
 
-- `config.json`: soglia, thread, timeout, password archivi, esclusioni, criteri disattivati, pesi, allowlist, suppress, regole YARA, chiavi API.
-- `cache/`: risultati per impronta SHA-256 (invalidata automaticamente quando cambia il motore).
-- `history.jsonl`, `quarantine/`, `feeds/` (impronte scaricate), `yara/` (regole `.yar` da applicare), `hashes.txt` (impronte personali).
+- `config.json`: language, threshold, threads, timeout, archive passwords, exclusions, disabled criteria, weights, allowlist, suppress, YARA rules, API keys.
+- `cache/`: results by SHA-256 fingerprint (invalidated automatically when the engine changes).
+- `history.jsonl`, `quarantine/`, `feeds/` (downloaded fingerprints), `yara/` (`.yar` rules to apply), `hashes.txt` (personal fingerprints).
 
-## Estendere
+## Extending
 
-- **Regole YARA della community** (es. YARA-Forge): copia i file `.yar` in `~/.gauntler/yara` (serve `brew install yara`).
-- **Impronte malevole personali**: `~/.gauntler/hashes.txt` (una riga: `sha256 nome`).
-- **Nuove regole interne**: `core/data/rules.js` (firme) e `core/data/tokens.js` (indicatori riga per riga).
-- **Nuovo criterio**: un modulo in `core/analyzers/` (`{ id, name, weight, applies(ctx), run(ctx) }`) registrato in `core/index.js`.
-- **Test**: `npm test` (motore + CLI + avanzati), `npm run test:engine`, `npm run test:cli`, `npm run test:advanced` (disassemblatori, algoritmi, shellcode, CDR).
+- **Community YARA rules** (e.g. YARA-Forge): copy the `.yar` files into `~/.gauntler/yara` (requires `brew install yara`).
+- **Personal malicious fingerprints**: `~/.gauntler/hashes.txt` (one line: `sha256 name`).
+- **New internal rules**: `core/data/rules.js` (signatures) and `core/data/tokens.js` (line-by-line indicators).
+- **New criterion**: a module in `core/analyzers/` (`{ id, name, weight, applies(ctx), run(ctx) }`) registered in `core/index.js`.
+- **Translations**: `core/locales/translations.json` maps each Italian text (the key used in the code) to English, Spanish, French and German; texts with variables use `{name}` placeholders.
+- **Tests**: `npm test` (engine + CLI + advanced + regression), `npm run test:engine`, `npm run test:cli`, `npm run test:advanced` (disassemblers, algorithms, shellcode, CDR).
 
-## Limiti
+## Limitations
 
-Analisi statica: non esegue il file. Un punteggio alto non garantisce l'assenza di malware sconosciuti o molto offuscati.
-Il CDR rende inerti i contenuti attivi conosciuti dei formati supportati; non può correggere vulnerabilità del programma che apre il file (es. un parser di immagini difettoso), né rendere sicuri programmi e script.
-Il disassemblatore non supporta MIPS/ARM32/RISC-V; il codice .NET (IL), Java e Python compilato non viene disassemblato.
-Per RAR/7z/ISO serve 7-Zip o bsdtar (su macOS bsdtar è già presente; per tutti i formati: `brew install sevenzip`). ZIP con cifratura AES e immagini DMG non vengono aperti.
+Static analysis: the file is never run. A high score does not guarantee the absence of unknown or heavily obfuscated malware.
+CDR neutralizes the known active content of the supported formats; it cannot fix vulnerabilities in the program that opens the file (e.g. a faulty image parser), nor make programs and scripts safe.
+The disassembler does not support MIPS/ARM32/RISC-V; .NET (IL), Java and compiled Python code is not disassembled.
+RAR/7z/ISO require 7-Zip or bsdtar (bsdtar is already included in macOS; for every format: `brew install sevenzip`). ZIP files with AES encryption and DMG images are not opened.
 
-## Licenza
+## License
 
-Gauntler è creato da **anvex2012** ed è distribuito con la **Gauntler Custom Source Code License 1.0** (vedi [`licenza-gauntler.txt`](licenza-gauntler.txt)).
+Gauntler is created by **anvex2012** and distributed under the **Gauntler Custom Source Code License 1.0** (see [`LICENSE.txt`](LICENSE.txt)).
 
-In breve: puoi usare, studiare, modificare e ridistribuire il codice **gratuitamente**, mantenendo il codice sorgente pubblico, includendo la licenza e conservando in ogni file l'attribuzione a `anvex2012`. La vendita del software o di versioni derivate è vietata.
+In short: you may use, study, modify and redistribute the code **free of charge**, keeping the source code public, including the license and preserving the attribution to `anvex2012` in every file. Selling the software or derived versions is prohibited.
 
 © 2026 anvex2012

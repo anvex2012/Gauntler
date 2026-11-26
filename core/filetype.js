@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 const { m: msg } = require('./i18n');
 const { isLikelyText } = require('./utils');

@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* gauntler app · install-command · uninstall-command */
 const fs = require('fs');

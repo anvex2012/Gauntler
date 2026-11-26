@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * AArch64 (ARM64) disassembler — fixed 32-bit instructions.

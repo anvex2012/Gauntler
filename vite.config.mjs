@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 

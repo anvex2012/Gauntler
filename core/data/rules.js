@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * YARA-style rules (pure JS, no native dependencies).

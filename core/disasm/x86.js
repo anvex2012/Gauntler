@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * x86 / x86-64 disassembler (pure JavaScript, table driven, Intel syntax).

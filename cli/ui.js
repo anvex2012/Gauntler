@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 const path = require('path');
 const i18n = require('../core/i18n');

@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* Worker thread: runs the analyses off the main thread */
 const { parentPort } = require('worker_threads');

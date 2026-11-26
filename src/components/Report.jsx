@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 import React, { useMemo, useState } from 'react';
 import { ScoreRing, ScoreChip, SevBadge, Radar, EntropyChart, Histogram, HexView, Copy, Stat, KV } from './ui.jsx';
 import { CodeViewer, StringsViewer } from './CodeViewer.jsx';

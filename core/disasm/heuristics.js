@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Behavioural heuristics on machine code. A streaming detector (constant memory) that receives the

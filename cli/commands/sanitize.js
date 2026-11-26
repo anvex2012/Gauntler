@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* gauntler sanitize: Content Disarm & Reconstruction — produces safe copies of files */
 const fs = require('fs');

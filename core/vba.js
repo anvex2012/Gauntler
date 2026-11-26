@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * MS-OVBA decompression (VBA macro compression, as used by olevba).

@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Known-plaintext search for content hidden with XOR / ADD keys.

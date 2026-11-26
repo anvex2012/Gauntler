@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Translations (gettext style): the Italian text is the key, the dictionaries in ./locales

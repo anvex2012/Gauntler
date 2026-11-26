@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /** Minimal glob → RegExp (supports **, *, ?, {a,b}) */
 function globToRe(g) {

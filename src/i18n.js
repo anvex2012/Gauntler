@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 /**
  * Translations for the interface: same dictionaries as the engine and the terminal (core/locales),
  * same rules as core/i18n.js — the Italian text is the key, {name} placeholders, Italian as fallback.

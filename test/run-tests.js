@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* Generates test samples (harmless) on the fly and checks the scores */
 const fs = require('fs');

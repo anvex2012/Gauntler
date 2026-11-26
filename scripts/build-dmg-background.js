@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Renders the background of the macOS install window (the .dmg):
@@ -30,16 +30,16 @@ const HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
   .step { display: inline-block; min-width: 17px; height: 17px; line-height: 17px; padding: 0 5px; border-radius: 9px; background: #2563eb; color: #fff;
           font-size: 10.5px; font-weight: 700; text-align: center; margin-right: 6px; vertical-align: 1px; }
 </style></head><body>
-  <div class="head"><h1>Installa Gauntler</h1><p>Trascina l'icona di Gauntler sulla cartella Applicazioni</p></div>
+  <div class="head"><h1>Install Gauntler</h1><p>Drag the Gauntler icon onto the Applications folder</p></div>
   <svg class="arrow" viewBox="0 0 156 30" aria-hidden="true">
     <path d="M6 15 H136" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 9"/>
     <path d="M132 5 L148 15 L132 25" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
   <div class="card">
-    <b>Al primo avvio</b>
-    <p><span class="step">1</span>Apri Gauntler da Applicazioni. Se macOS la blocca, premi <em>Fine</em>.</p>
-    <p><span class="step">2</span>Apri <em>Impostazioni di Sistema › Privacy e sicurezza</em> e premi <em>Apri comunque</em>.</p>
-    <p style="margin-top:6px;color:#6b7383">Poi Gauntler installa da solo tutto il resto: comando <em>gauntler</em>, antivirus ClamAV e bsdtar.</p>
+    <b>On first launch</b>
+    <p><span class="step">1</span>Open Gauntler from Applications. If macOS blocks it, press <em>Done</em>.</p>
+    <p><span class="step">2</span>Open <em>System Settings › Privacy &amp; Security</em> and press <em>Open Anyway</em>.</p>
+    <p style="margin-top:6px;color:#6b7383">Then Gauntler installs everything else by itself: the <em>gauntler</em> command, the ClamAV antivirus and bsdtar.</p>
   </div>
 </body></html>`;
 
@@ -58,6 +58,6 @@ app.on('window-all-closed', () => { /* keep running */ });
 app.whenReady().then(async () => {
   // A single 660×420 PNG: Finder on recent macOS shows the Retina variant of a multi-image TIFF at double size
   fs.writeFileSync(path.join(ROOT, 'build', 'dmg-background.png'), await render(1));
-  console.log('build/dmg-background.png creato');
+  console.log('build/dmg-background.png created');
   app.quit();
 });

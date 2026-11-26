@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 const i18n = require('./i18n');
 const { t } = i18n;
@@ -221,7 +221,7 @@ async function updateDatabase({ interactive, log: rawLog = () => {}, quiet } = {
   const dir = DB_DIR();
   const conf = path.join(dir, 'freshclam.conf');
   fs.writeFileSync(conf, [
-    '# Creato da anvex2012 - configurazione di freshclam usata da Gauntler',
+    '# Created by anvex2012 - freshclam configuration used by Gauntler',
     `DatabaseDirectory ${dir}`,
     'DatabaseMirror database.clamav.net',
     'ConnectTimeout 30',

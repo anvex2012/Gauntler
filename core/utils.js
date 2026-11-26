@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 
 /** Shannon entropy (bits per byte, 0..8) */

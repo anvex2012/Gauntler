@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { VirtualList, SevBadge } from './ui.jsx';
 import { t } from '../i18n.js';

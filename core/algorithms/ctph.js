@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Context-Triggered Piecewise Hashing (the spamsum / ssdeep algorithm, Kornblum 2006).

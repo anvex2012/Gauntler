@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* Tests for the disassembler, the algorithms, shellcode detection and the CDR (sanitize) engine.
  * All samples are generated on the fly and are NOT functional malware: the "shellcode" below is a

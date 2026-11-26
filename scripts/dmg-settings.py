@@ -1,4 +1,4 @@
-# Creato da anvex2012
+# Created by anvex2012
 # Layout of the macOS install window (.dmg), used by scripts/package-all.js through dmgbuild.
 # Values come from defines: -D app=... -D background=... -D icon=...
 import os

@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Result cache: a file identical to one already analyzed (same SHA-256, same engine version and

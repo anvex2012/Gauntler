@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Compound File Binary (OLE2) — in-place disarm of legacy Office documents (.doc .xls .ppt).

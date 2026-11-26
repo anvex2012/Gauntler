@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LEVEL_COLOR, levelOf, SEVERITY } from '../lib.js';
 import Icon from './Icon.jsx';

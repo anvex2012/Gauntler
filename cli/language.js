@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* Language of the terminal and of the desktop app: chosen on first use, changeable with "gauntler language" */
 const config = require('../core/config');

@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* Management commands: quarantine, history, config, cache, hash, lookup, update, rules, doctor */
 const fs = require('fs');

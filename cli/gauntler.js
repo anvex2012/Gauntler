@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 const fs = require('fs');
 const args = require('./args');

@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 const { m: msg } = require('../i18n');
 const { EXT_EXPECT, DANGEROUS_EXT } = require('../filetype');

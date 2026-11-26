@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Report from './components/Report.jsx';
 import { ScoreRing, ScoreChip, Stat } from './components/ui.jsx';

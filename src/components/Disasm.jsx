@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 import React, { useState } from 'react';
 import { VirtualList, KV } from './ui.jsx';
 import { t } from '../i18n.js';

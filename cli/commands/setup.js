@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* gauntler setup — installs ClamAV (with its signatures) and bsdtar */
 const setup = require('../../core/setup');

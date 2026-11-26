@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 import { t, locale } from './i18n.js';
 
 export const LEVEL_COLOR = { safe: 'var(--safe)', low: 'var(--low)', medium: 'var(--medium)', high: 'var(--high)', critical: 'var(--critical)' };

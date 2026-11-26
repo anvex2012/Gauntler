@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 const { t } = require('../core/i18n');
 /**
@@ -109,7 +109,7 @@ function ensurePath(dir = defaultDir()) {
   const line = f.endsWith('config.fish') ? `fish_add_path ${homeRel(dir)}` : `export PATH="${homeRel(dir)}:$PATH"`;
   fs.mkdirSync(path.dirname(f), { recursive: true });
   let cur = ''; try { cur = fs.readFileSync(f, 'utf8'); } catch { /* new file */ }
-  fs.appendFileSync(f, `${cur && !cur.endsWith('\n') ? '\n' : ''}\n${RC_BEGIN}\n# Comando "gauntler" (aggiunto da Gauntler, rimuovi con: gauntler uninstall-command)\n${line}\n${RC_END}\n`);
+  fs.appendFileSync(f, `${cur && !cur.endsWith('\n') ? '\n' : ''}\n${RC_BEGIN}\n# "gauntler" command (added by Gauntler, remove with: gauntler uninstall-command)\n${line}\n${RC_END}\n`);
   return f;
 }
 function removePath() {

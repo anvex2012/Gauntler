@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* gauntler disasm: assembly listing (x86 / x86-64 / ARM64) with bytes in hex or binary */
 const fs = require('fs');

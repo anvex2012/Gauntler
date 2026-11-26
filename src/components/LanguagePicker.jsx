@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 import React, { useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
 import logo from '../assets/logo.png';

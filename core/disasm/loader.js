@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Finds the machine code inside an executable: architecture, entry point, executable regions,

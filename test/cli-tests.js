@@ -1,4 +1,4 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /* Tests for the terminal commands (isolated environment via GAUNTLER_HOME) */
 const fs = require('fs');

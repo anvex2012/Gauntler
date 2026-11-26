@@ -1,11 +1,11 @@
-// Creato da anvex2012
+// Created by anvex2012
 'use strict';
 /**
  * Builds the files to publish in a GitHub release, in release/upload/:
  *   Gauntler-<v>-macOS-arm64.dmg     disk image (drag to Applications)
  *   Gauntler-<v>-macOS-arm64.zip     the same app, zipped
  *   Gauntler-<v>-Windows-x64.zip     portable folder with Gauntler.exe
- *   Gauntler-<v>-Linux-x64.tar.gz    portable folder with the "gauntler" launcher + installa.sh
+ *   Gauntler-<v>-Linux-x64.tar.gz    portable folder with the "gauntler" launcher + install.sh
  *   SHA256SUMS.txt
  *
  *   npm run release:build        (on a Mac: the .dmg needs hdiutil)
@@ -18,7 +18,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-if (process.platform !== 'darwin') { console.error('Questo script va eseguito su un Mac (serve hdiutil per il .dmg).'); process.exit(1); }
+if (process.platform !== 'darwin') { console.error('Run this script on a Mac (hdiutil is needed for the .dmg).'); process.exit(1); }
 
 const ROOT = path.join(__dirname, '..');
 const pkg = require(path.join(ROOT, 'package.json'));
@@ -51,7 +51,7 @@ const venv = path.join(ROOT, 'node_modules', '.cache', 'gauntler-dmgbuild');
 const py = path.join(venv, 'bin', 'python3');
 try { execFileSync(py, ['-c', 'import dmgbuild'], { stdio: 'ignore' }); }
 catch {
-  console.log('  preparo dmgbuild (una volta sola)…');
+  console.log('  preparing dmgbuild (once)…');
   run('python3', ['-m', 'venv', venv]);
   run(py, ['-m', 'pip', 'install', '-q', '--disable-pip-version-check', 'dmgbuild']);
 }
@@ -60,13 +60,13 @@ run(py, ['-m', 'dmgbuild', '-s', path.join(__dirname, 'dmg-settings.py'),
   `Gauntler ${V}`, dmgOut], { stdio: ['ignore', 'ignore', 'inherit'] });
 
 /* ── Common app folder for Windows and Linux (same content as the macOS app) ── */
-step('Codice dell\'app per Windows e Linux');
+step('App code for Windows and Linux');
 const stage = path.join(WORK, 'app');
 fs.mkdirSync(stage);
 for (const d of ['electron', 'core', 'cli', 'dist']) fs.cpSync(path.join(ROOT, d), path.join(stage, d), { recursive: true });
 fs.mkdirSync(path.join(stage, 'build'));
 fs.copyFileSync(path.join(ROOT, 'build', 'icon.png'), path.join(stage, 'build', 'icon.png'));
-fs.copyFileSync(path.join(ROOT, 'licenza-gauntler.txt'), path.join(stage, 'licenza-gauntler.txt'));
+fs.copyFileSync(path.join(ROOT, 'LICENSE.txt'), path.join(stage, 'LICENSE.txt'));
 const { devDependencies, scripts, ...runtimePkg } = pkg;
 fs.writeFileSync(path.join(stage, 'package.json'), JSON.stringify({ ...runtimePkg, productName: 'Gauntler', dependencies: {} }, null, 2));
 
@@ -87,22 +87,23 @@ async function cross() {
 
   /* ── Windows ── */
   step('Windows x64 (Electron ' + ELECTRON_VERSION + ')');
-  const [winDir] = await packager({ ...common, platform: 'win32', arch: 'x64', name: 'Gauntler', icon: ICO, win32metadata: { CompanyName: 'anvex2012', ProductName: 'Gauntler', FileDescription: 'Gauntler - analisi di sicurezza dei file', OriginalFilename: 'Gauntler.exe' } });
+  const [winDir] = await packager({ ...common, platform: 'win32', arch: 'x64', name: 'Gauntler', icon: ICO, win32metadata: { CompanyName: 'anvex2012', ProductName: 'Gauntler', FileDescription: 'Gauntler - file security analysis', OriginalFilename: 'Gauntler.exe' } });
   const winName = `Gauntler-${V}-Windows-x64`;
   fs.renameSync(winDir, path.join(WORK, winName));
-  fs.copyFileSync(path.join(ROOT, 'licenza-gauntler.txt'), path.join(WORK, winName, 'Licenza.txt'));
-  fs.writeFileSync(path.join(WORK, winName, 'LEGGIMI.txt'), [
-    'Gauntler ' + V + ' per Windows - Creato da anvex2012',
+  fs.copyFileSync(path.join(ROOT, 'LICENSE.txt'), path.join(WORK, winName, 'LICENSE.txt'));
+  fs.writeFileSync(path.join(WORK, winName, 'README.txt'), [
+    'Gauntler ' + V + ' for Windows - Created by anvex2012',
     '',
-    '1. Estrai tutta la cartella (clic destro sullo zip > Estrai tutto).',
-    '2. Apri Gauntler.exe.',
-    '   Se Windows mostra "Windows ha protetto il PC": clic su "Ulteriori informazioni" > "Esegui comunque".',
-    '3. Trascina file o cartelle nella finestra, oppure usa i pulsanti "Scegli file" / "Scegli cartella".',
+    '1. Extract the whole folder (right-click the zip > Extract All).',
+    '2. Open Gauntler.exe.',
+    '   If Windows shows "Windows protected your PC": click "More info" > "Run anyway".',
+    '3. Drag files or folders into the window, or use the "Choose files" / "Choose folder" buttons.',
+    '   On first launch Gauntler asks for the language (Italian, English, Spanish, French, German).',
     '',
-    'Uso da terminale (facoltativo, serve Node.js): scarica il codice sorgente da GitHub ed esegui',
+    'Terminal use (optional, requires Node.js): download the source code from GitHub and run',
     '   node cli\\gauntler.js <file>',
     '',
-    'Istruzioni complete: https://github.com/anvex2012/Gauntler/blob/main/ISTRUZIONI.md',
+    'Full instructions: https://github.com/anvex2012/Gauntler/blob/main/INSTRUCTIONS.md',
     '',
   ].join('\r\n'));
   run('zip', ['-r', '-q', '-X', '-9', path.join(OUT, winName + '.zip'), winName], { cwd: WORK });
@@ -114,10 +115,10 @@ async function cross() {
   const L = path.join(WORK, linName);
   fs.renameSync(linDir, L);
   fs.copyFileSync(path.join(ROOT, 'build', 'icon.png'), path.join(L, 'gauntler.png'));
-  fs.copyFileSync(path.join(ROOT, 'licenza-gauntler.txt'), path.join(L, 'Licenza.txt'));
+  fs.copyFileSync(path.join(ROOT, 'LICENSE.txt'), path.join(L, 'LICENSE.txt'));
   // Launcher: uses Chromium's sandbox when chrome-sandbox is set up (root + setuid), otherwise starts without it
   fs.writeFileSync(path.join(L, 'gauntler'), `#!/bin/sh
-# Creato da anvex2012 - avvia l'app Gauntler
+# Created by anvex2012 - starts the Gauntler app
 DIR=$(dirname "$(readlink -f "$0")")
 SB="$DIR/chrome-sandbox"
 if [ "$(stat -c %u "$SB" 2>/dev/null)" = "0" ] && [ -u "$SB" ]; then
@@ -126,8 +127,8 @@ fi
 exec "$DIR/gauntler-app" --no-sandbox "$@"
 `, { mode: 0o755 });
   // Optional installer: menu entry + "gauntler" terminal command
-  fs.writeFileSync(path.join(L, 'installa.sh'), `#!/bin/sh
-# Creato da anvex2012 - aggiunge Gauntler al menu delle applicazioni e il comando "gauntler" al terminale
+  fs.writeFileSync(path.join(L, 'install.sh'), `#!/bin/sh
+# Created by anvex2012 - adds Gauntler to the applications menu and the "gauntler" command to the terminal
 set -e
 DIR=$(dirname "$(readlink -f "$0")")
 APPS="\${XDG_DATA_HOME:-$HOME/.local/share}/applications"
@@ -136,7 +137,7 @@ cat > "$APPS/gauntler.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Gauntler
-Comment=Analisi di sicurezza dei file
+Comment=File security analysis
 Exec="$DIR/gauntler" %F
 Icon=$DIR/gauntler.png
 Terminal=false
@@ -144,31 +145,31 @@ Categories=Utility;Security;
 EOF
 chmod +x "$APPS/gauntler.desktop"
 ELECTRON_RUN_AS_NODE=1 "$DIR/gauntler-app" "$DIR/resources/app/cli/gauntler.js" install-command
-echo "Fatto: Gauntler e' nel menu delle applicazioni. Apri un nuovo terminale e scrivi: gauntler"
+echo "Done: Gauntler is in the applications menu. Open a new terminal and type: gauntler"
 `, { mode: 0o755 });
-  fs.writeFileSync(path.join(L, 'LEGGIMI.txt'), [
-    'Gauntler ' + V + ' per Linux - Creato da anvex2012',
+  fs.writeFileSync(path.join(L, 'README.txt'), [
+    'Gauntler ' + V + ' for Linux - Created by anvex2012',
     '',
     '  tar -xzf ' + linName + '.tar.gz',
     '  cd ' + linName,
-    '  ./gauntler            # apre l\'app',
-    '  ./installa.sh         # facoltativo: menu delle applicazioni + comando "gauntler" nel terminale',
+    '  ./gauntler            # opens the app',
+    '  ./install.sh          # optional: applications menu + "gauntler" command in the terminal',
     '',
-    'Per usare la sandbox di Chromium (consigliato):',
+    'To use the Chromium sandbox (recommended):',
     '  sudo chown root:root chrome-sandbox && sudo chmod 4755 chrome-sandbox',
     '',
-    'Istruzioni complete: https://github.com/anvex2012/Gauntler/blob/main/ISTRUZIONI.md',
+    'Full instructions: https://github.com/anvex2012/Gauntler/blob/main/INSTRUCTIONS.md',
     '',
   ].join('\n'));
   run('tar', ['--no-mac-metadata', '-czf', path.join(OUT, linName + '.tar.gz'), linName], { cwd: WORK, env: { ...process.env, COPYFILE_DISABLE: '1' } });
 }
 
 cross().then(() => {
-  step('Impronte SHA-256');
+  step('SHA-256 fingerprints');
   const files = fs.readdirSync(OUT).filter((f) => !f.endsWith('.txt')).sort();
   const sums = files.map((f) => `${require('crypto').createHash('sha256').update(fs.readFileSync(path.join(OUT, f))).digest('hex')}  ${f}`).join('\n') + '\n';
   fs.writeFileSync(path.join(OUT, 'SHA256SUMS.txt'), sums);
   fs.rmSync(WORK, { recursive: true, force: true });
-  console.log('\nFile pronti in release/upload:');
+  console.log('\nFiles ready in release/upload:');
   for (const f of fs.readdirSync(OUT)) console.log(`  ${f.padEnd(40)} ${(fs.statSync(path.join(OUT, f)).size / 1048576).toFixed(1)} MB`);
 }, (e) => { console.error('✖ ' + (e.stack || e.message)); process.exit(1); });
