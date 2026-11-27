@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
 process.env.GAUNTLER_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'gauntler-adv-home-'));
+process.env.GAUNTLER_LANG = 'it'; // the checks match Italian texts
 const { scanBuffer, scanFile } = require('../core');
 const x86 = require('../core/disasm/x86');
 const arm64 = require('../core/disasm/arm64');

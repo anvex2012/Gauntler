@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
 process.env.GAUNTLER_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'gauntler-reg-home-'));
+process.env.GAUNTLER_LANG = 'it'; // the checks match Italian texts
 const { scanBuffer, scanFile } = require('../core');
 const { writeZip, readZip, extract, crc32 } = require('../core/zip');
 const limits = require('../core/limits');

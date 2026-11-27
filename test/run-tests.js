@@ -5,6 +5,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const zlib = require('zlib');
+
+// Isolated data folder and fixed language: the checks below match Italian texts
+process.env.GAUNTLER_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'gauntler-eng-home-'));
+process.env.GAUNTLER_LANG = 'it';
 const { scanFile, scanBuffer } = require('../core');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gauntler-test-'));
@@ -146,6 +150,7 @@ const cases = [
   const b = await scanBuffer(Buffer.from(EICAR), 'mem.txt');
   if (b.overall.score > 10) { fail++; console.log('✘ scanBuffer EICAR', b.overall.score); } else console.log('✔ scanBuffer EICAR', b.overall.score);
   fs.rmSync(dir, { recursive: true, force: true });
+  fs.rmSync(process.env.GAUNTLER_HOME, { recursive: true, force: true });
   console.log(fail ? `\n${fail} test falliti` : '\nTutti i test superati');
   process.exit(fail ? 1 : 0);
 })();

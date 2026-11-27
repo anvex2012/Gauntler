@@ -1,6 +1,6 @@
 {
   "name": "gauntler",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "description": "Gauntler - file security analyzer (Electron GUI + CLI)",
   "main": "electron/main.js",
   "bin": {
@@ -11,7 +11,7 @@
     "build": "vite build",
     "start": "vite build && electron .",
     "scan": "node cli/gauntler.js",
-    "test": "export GAUNTLER_LANG=it; GAUNTLER_HOME=$(mktemp -d) node test/run-tests.js && node test/cli-tests.js && node test/advanced-tests.js && node test/regression-tests.js",
+    "test": "node test/run-tests.js && node test/cli-tests.js && node test/advanced-tests.js && node test/regression-tests.js",
     "test:regression": "node test/regression-tests.js",
     "test:engine": "node test/run-tests.js",
     "test:cli": "node test/cli-tests.js",
