@@ -8,13 +8,7 @@ const { c } = require('./ui');
 const TITLE = 'Scegli la lingua · Choose your language · Elige tu idioma · Choisissez votre langue · Wähle deine Sprache';
 const HINT = '↑/↓ + Invio/Enter · 1-5';
 
-/** Language of the system (LANG, LC_ALL, Intl), used as the preselected choice */
-function systemLanguage() {
-  const env = process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG || '';
-  let intl = '';
-  try { intl = Intl.DateTimeFormat().resolvedOptions().locale; } catch { /* */ }
-  return i18n.normalize(env) || i18n.normalize(intl) || 'en';
-}
+const systemLanguage = i18n.systemLanguage;
 
 /** True when the language has never been chosen (config.json has no "language") */
 function needsChoice() {

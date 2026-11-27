@@ -37,7 +37,7 @@ const A = {
 const ORDER = Object.keys(A);
 const TEXTUAL = ORDER.filter((id) => A[id].textual);
 
-const VERSION = '2.4.2';
+const VERSION = '2.4.3';
 const CHUNK = 64 * 1024 * 1024;           // analysis block (the whole file is analyzed, block by block)
 const OVERLAP = 256 * 1024;               // overlap between blocks (so no match across a boundary is missed)
 const IN_MEMORY_MAX = Math.min(require('buffer').constants.MAX_LENGTH, 1536 * 1024 * 1024);

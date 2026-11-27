@@ -5,7 +5,9 @@ const { mask, findAll, strEntropy, truncate, isDoc } = require('../utils');
 
 // Patterns inspired by gitleaks / trufflehog / detect-secrets. group = which capture group is the secret
 const PATTERNS = [
-  ['private_key', 'Chiave privata', 'critical', /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED |SSH2 ENCRYPTED )?PRIVATE KEY(?: BLOCK)?-----/g],
+  // Header followed by the key itself (optional "Name: value" header lines, then base64): the header alone is
+  // a format constant found in every SSH/TLS program (ssh-keygen, openssl…), not a leaked key
+  ['private_key', 'Chiave privata', 'critical', /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED |SSH2 ENCRYPTED )?PRIVATE KEY(?: BLOCK)?-----(?:\r?\n[\w-]+: [^\r\n]*)*\s*[A-Za-z0-9+/]{40}/g],
   ['putty_key', 'Chiave privata PuTTY', 'critical', /PuTTY-User-Key-File-\d: /g],
   ['aws_access_key', 'AWS Access Key ID', 'high', /\b(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA|ANVA|AIPA)[0-9A-Z]{16}\b/g],
   ['aws_secret', 'AWS Secret Access Key', 'critical', /aws.{0,20}(?:secret|private).{0,20}[:=]\s*['"]?([A-Za-z0-9/+=]{40})\b/gi, 1],
@@ -96,6 +98,8 @@ const EXAMPLE_CREDS = /^(pass(word)?|pwd|secret|xxx+|\*+|<.*>|\$\{.*|user|userna
 
 function looksLikeCredential(v) {
   if (/^[?@#!]/.test(v) || /\s/.test(v)) return false;
+  // Chinese/Japanese/Korean text is a translated message (e.g. TypeScript's "Unexpected_token": "未預期的語彙基元。"), not a password
+  if (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\u3000-\u303f\uff00-\uffef]/u.test(v)) return false;
   if (/^[A-Za-z]+$/.test(v) && v.length < 20) return false;
   if (/^[a-z]+([A-Z][a-z]+)+$/.test(v)) return false;
   if (/^[a-z0-9]+([-_.][a-z0-9]+)+$/.test(v) && !/\d{3,}/.test(v)) return false;

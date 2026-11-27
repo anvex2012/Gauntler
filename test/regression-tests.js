@@ -541,6 +541,91 @@ const mcBad = (r) => (mcOf(r)?.findings || []).filter((f) => f.severity !== 'inf
     check(`programma di sistema ${bin}: codice macchina ≥ 95, nessuna segnalazione`, mc.score >= 95 && !mcBad(r).length, `${mc.score} ${mcBad(r).map((f) => f.title).join(' | ')}`);
   }
 
+  console.log('\n— Permessi chmod, lingua, ClamAV —');
+  {
+    const r = await scanBuffer(Buffer.from('chmod 4755 a \nchmod 777 /tmp/b \nchmod o+w c \nchmod +x d.sh \nchmod 755 e \n'), 'perm.sh', OPT);
+    const tok = (id) => r.findings.find((f) => f.id === 'tok:' + id) || r.findings.find((f) => (f.title || '').startsWith({ chmod_suid: 'SUID', chmod_world: 'chmod 777', chmod_x: 'chmod +x' }[id]));
+    const cnt = (f) => (f && Number((String(f.title).match(/(\d+) righ/) || [, 1])[1])) || 0;
+    check('chmod 4755 → SUID (non coperto da "chmod +x")', !!tok('chmod_suid'), r.findings.map((f) => f.title).join(' | '));
+    check('chmod 777 e o+w → "scrivibile da tutti", non "eseguibile"', cnt(tok('chmod_world')) === 2 && /scrivibile da tutti/.test(tok('chmod_world').detail || ''), r.findings.map((f) => f.title).join(' | '));
+    check('chmod +x e 755 → "chmod +x"', cnt(tok('chmod_x')) === 2, r.findings.map((f) => f.title).join(' | '));
+
+    const { spawnSync } = require('child_process');
+    const lang = (envLang) => {
+      const env = { ...process.env, GAUNTLER_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'gauntler-lang-')), LANG: envLang };
+      delete env.GAUNTLER_LANG; delete env.LC_ALL; delete env.LC_MESSAGES;
+      const out = spawnSync(process.execPath, ['-e', 'console.log(require("./core/i18n").getLanguage())'], { cwd: path.join(__dirname, '..'), env, encoding: 'utf8' }).stdout.trim();
+      fs.rmSync(env.GAUNTLER_HOME, { recursive: true, force: true });
+      return out;
+    };
+    check('nessuna lingua salvata, LANG=en_US → inglese (non italiano)', lang('en_US.UTF-8') === 'en');
+    check('nessuna lingua salvata, LANG=de_DE → tedesco', lang('de_DE.UTF-8') === 'de');
+    check('nessuna lingua salvata, LANG=it_IT → italiano', lang('it_IT.UTF-8') === 'it');
+
+    // Translation: a message identical to its own value (m('{list}', { list: ['x'] })) used to loop forever (/bin/zsh in English)
+    {
+      const i18n = require('../core/i18n');
+      const one = i18n.m('{list}', { list: ['Offuscatore Go (garble)'] });
+      const title = i18n.m('Rilevato: {label}', { label: one });
+      let out, err = null;
+      try { out = i18n.translate(title, 'en'); } catch (e) { err = e.message; }
+      check('traduzione: messaggio uguale al proprio valore → nessun ciclo infinito', !err && /^Detected: /.test(out), err || out);
+      const loopPack = { a: ['{x}', { x: 'b' }], b: ['{x}', { x: 'a' }] }; // cycle in an old cached pack
+      try { out = i18n.translate('a', 'en', loopPack); err = null; } catch (e) { err = e.message; }
+      check('traduzione: ciclo in un pacchetto salvato → nessun ciclo infinito', !err, err);
+    }
+    for (const bin of ['/bin/zsh']) {
+      if (!fs.existsSync(bin)) continue;
+      const rz = await scanFile(bin, { ...OPT, noClamav: true, lang: 'en' });
+      check(`${bin} in inglese: analizzato senza errori, niente "garble" ("Garbled input" è un messaggio di zsh)`, rz.overall.score >= 90 && !rz.findings.some((f) => /garble/i.test(f.title)), `${rz.overall.score} ${rz.findings.map((f) => f.title).join(' | ')}`);
+    }
+
+    // Private key: the header alone (a constant inside ssh-keygen/openssl) is not a key; a real PEM key is
+    {
+      const pem = require('crypto').generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({ type: 'pkcs8', format: 'pem' });
+      const isKey = (r) => r.findings.some((f) => /Chiave privata/.test(f.title) && f.severity === 'critical');
+      check('chiave privata PEM vera in un file di testo → critico', isKey(await scanBuffer(Buffer.from('config\n' + pem), 'key.txt', OPT)));
+      const fakeBin = Buffer.concat([Buffer.from([0xcf, 0xfa, 0xed, 0xfe]), Buffer.alloc(200), Buffer.from('\0-----BEGIN OPENSSH PRIVATE KEY-----\0-----END OPENSSH PRIVATE KEY-----\0'), Buffer.alloc(200)]);
+      check('solo l\'intestazione "BEGIN PRIVATE KEY" dentro un programma → non è una chiave', !isKey(await scanBuffer(fakeBin, 'ssh-tool', OPT)));
+      const textHdr = await scanBuffer(Buffer.from('-----BEGIN OPENSSH PRIVATE KEY-----\n-----END OPENSSH PRIVATE KEY-----\n'), 'h.txt', OPT);
+      check('intestazione senza corpo in un testo → nessuna "Chiave privata" dal rilevatore di segreti', !textHdr.findings.some((f) => /Chiave privata/.test(f.title) && f.categoryId === 'secrets'), textHdr.findings.map((f) => f.categoryId + ':' + f.title).join(' | '));
+    }
+
+    // Bait names: whole words (CamelCase split), not substrings of ordinary names
+    {
+      const lure = async (name) => (await scanBuffer(Buffer.from('#!/bin/sh\necho ok\n'), name, OPT)).findings.some((f) => f.title === 'Nome-esca su un file eseguibile');
+      for (const n of ['Fattura_2024.sh', 'MyInvoice.sh', 'Photoshop-keygen.sh', 'FlashUpdater.sh']) check(`nome-esca: ${n} → segnalato`, await lure(n));
+      for (const n of ['groups.sh', 'syntax.sh', 'dispatch.sh', 'border.sh', 'softwareupdate.sh']) check(`nome-esca: ${n} → non segnalato`, !(await lure(n)));
+    }
+
+    // Right-to-left pages and CJK translations: legitimate content, not Trojan Source or passwords
+    {
+      const bidi = (r) => r.findings.filter((f) => /Trojan Source/.test(f.title)).map((f) => f.severity);
+      const he = await scanBuffer(Buffer.from('<html dir="rtl"><body><p>\u05e9\u05dc\u05d5\u05dd \u202bSUM(A1:A3)\u202c \u05e2\u05d5\u05dc\u05dd</p></body></html>'), 'he.html', OPT);
+      check('HTML in ebraico con controlli di direzione → solo informativo', bidi(he).every((s) => s === 'info'), bidi(he).join(','));
+      const js = await scanBuffer(Buffer.from('// \u05e9\u05dc\u05d5\u05dd\nif (isAdmin\u202e \u2066// check\u2069 \u2066) {\n  grant();\n}\n'), 'a.js', OPT);
+      check('JavaScript con controlli di direzione (anche con testo ebraico) → ancora critico', bidi(js).includes('critical'), bidi(js).join(','));
+      const bom = await scanBuffer(Buffer.from('\ufeff<html><script>var a = "\u202e";</script></html>'), 'bom.html', OPT);
+      check('HTML con BOM ma senza testo RTL → non declassato', bidi(bom).some((s) => s !== 'info'), bidi(bom).join(','));
+      const zh = await scanBuffer(Buffer.from('{\n  "Unexpected_token_1012": "\u672a\u9810\u671f\u7684\u8a9e\u5f59\u57fa\u5143\u3002",\n  "api_token": "k9X2mQ7vR4tZ8wL1pB6n"\n}\n'), 'msgs.json', OPT);
+      const pw = zh.findings.filter((f) => f.title === 'Password scritta in chiaro');
+      check('messaggio tradotto in cinese con chiave "token" → non è una password', !pw.some((f) => (f.evidence || []).concat(f.detail || '').join(' ').includes('\u672a')) && pw.length <= 1, pw.map((f) => JSON.stringify(f.evidence)).join(' | '));
+      check('… mentre un token vero nello stesso file è ancora segnalato', pw.length === 1, zh.findings.map((f) => f.title).join(' | '));
+    }
+
+    // ClamAV without signatures: a clear reason instead of the truncated command line
+    const clam = require('../core/analyzers/clamav');
+    const fake = path.join(work, 'clamscan');
+    fs.writeFileSync(fake, '#!/bin/sh\necho "LibClamAV Error: cli_loaddbdir: No supported database files found in /x" >&2\necho "ERROR: Can\'t open file or directory" >&2\nexit 2\n', { mode: 0o755 });
+    const target = path.join(work, 'x.txt'); fs.writeFileSync(target, 'ciao');
+    const oldPath = process.env.PATH;
+    process.env.PATH = work + path.delimiter + oldPath; // "clamscan" is looked up first in PATH: the fake one wins
+    clam.reset();
+    let r2;
+    try { r2 = await clam.run({ path: target, options: {} }); } finally { process.env.PATH = oldPath; clam.reset(); }
+    check('ClamAV senza firme → "Firme antivirus ClamAV mancanti", niente riga di comando', !!r2 && r2.skipped && (/Firme antivirus ClamAV mancanti/.test(r2.reason) && !/--max-/.test(r2.reason)), r2 && r2.reason);
+  }
+
   fs.rmSync(work, { recursive: true, force: true });
   fs.rmSync(process.env.GAUNTLER_HOME, { recursive: true, force: true });
   console.log(fail ? `\n${fail}/${total} test di regressione FALLITI` : `\nTutti i ${total} test di regressione superati`);

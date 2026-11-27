@@ -41,12 +41,14 @@ FILE=$(basename "$URL")
 
 say "Downloading ${FILE}…"
 curl -fL --progress-bar -o "$TMP/$FILE" "$URL" || fail "Download failed."
-if [ -n "$SUMS" ] && curl -fsSL -o "$TMP/SHA256SUMS.txt" "$SUMS"; then
-  EXPECTED=$(grep " $FILE\$" "$TMP/SHA256SUMS.txt" | cut -d' ' -f1)
-  if command -v shasum >/dev/null 2>&1; then ACTUAL=$(shasum -a 256 "$TMP/$FILE" | cut -d' ' -f1); else ACTUAL=$(sha256sum "$TMP/$FILE" | cut -d' ' -f1); fi
-  [ -z "$EXPECTED" ] || [ "$EXPECTED" = "$ACTUAL" ] || fail "SHA-256 fingerprint does not match: damaged file."
-  ok "File verified (SHA-256)"
-fi
+# The fingerprint is mandatory: without it nothing is installed
+[ -n "$SUMS" ] || fail "SHA256SUMS.txt not found in the release: nothing installed."
+curl -fsSL -o "$TMP/SHA256SUMS.txt" "$SUMS" || fail "Unable to download SHA256SUMS.txt: nothing installed."
+EXPECTED=$(grep " $FILE\$" "$TMP/SHA256SUMS.txt" | cut -d' ' -f1)
+[ -n "$EXPECTED" ] || fail "$FILE is not listed in SHA256SUMS.txt: nothing installed."
+if command -v shasum >/dev/null 2>&1; then ACTUAL=$(shasum -a 256 "$TMP/$FILE" | cut -d' ' -f1); else ACTUAL=$(sha256sum "$TMP/$FILE" | cut -d' ' -f1); fi
+[ "$EXPECTED" = "$ACTUAL" ] || fail "SHA-256 fingerprint does not match: damaged or altered file, nothing installed."
+ok "File verified (SHA-256 $ACTUAL)"
 
 if [ "$OS" = "Darwin" ]; then
   DEST=${GAUNTLER_DEST:-/Applications}
@@ -57,7 +59,6 @@ if [ "$OS" = "Darwin" ]; then
   pkill -x Gauntler 2>/dev/null || true
   rm -rf "$DEST/Gauntler.app"
   ditto "$TMP/app/Gauntler.app" "$DEST/Gauntler.app"
-  xattr -dr com.apple.quarantine "$DEST/Gauntler.app" 2>/dev/null || true
   ok "Gauntler installed: $DEST/Gauntler.app"
   if [ -z "${GAUNTLER_NO_OPEN:-}" ]; then
     open "$DEST/Gauntler.app"

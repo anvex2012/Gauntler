@@ -46,7 +46,14 @@ const normalize = (code) => {
 function savedLanguage() {
   try { return normalize(JSON.parse(fs.readFileSync(require('./paths').file('config.json'), 'utf8')).language); } catch { return null; }
 }
-let current = normalize(process.env.GAUNTLER_LANG) || savedLanguage() || 'it';
+/** Language of the system (LC_ALL, LC_MESSAGES, LANG, then Intl); English when it is not one of ours */
+function systemLanguage() {
+  const env = process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG || '';
+  let intl = '';
+  try { intl = Intl.DateTimeFormat().resolvedOptions().locale; } catch { /* */ }
+  return normalize(env) || normalize(intl) || 'en';
+}
+let current = normalize(process.env.GAUNTLER_LANG) || savedLanguage() || systemLanguage();
 function setLanguage(code) { const c = normalize(code); if (c) current = c; return current; }
 const getLanguage = () => current;
 const locale = (lang = current) => (LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0]).locale;
@@ -88,7 +95,10 @@ function tl(lang, text, vars) { const l = normalize(lang) || current; return fil
 /** Deferred translation (analyzers): returns Italian, translated later by localize() */
 function m(text, vars) {
   const out = fill(text, vars, 'it');
-  if (vars && out !== text) {
+  // Not recorded when the result is one of its own values (e.g. m('{list}', { list: ['x'] }) → 'x'):
+  // it would map 'x' to a template that contains 'x', and translating 'x' would never end
+  const self = vars && Object.values(vars).some((v) => (Array.isArray(v) ? v.length === 1 && v[0] === out : v === out));
+  if (vars && out !== text && !self) {
     if (REG.size > REG_MAX) REG.clear();
     REG.set(out, [text, vars]);
   }
@@ -96,10 +106,14 @@ function m(text, vars) {
 }
 
 /** Translates a single value (string produced by m(), static text, or anything else unchanged) */
+const ACTIVE = new Set(); // messages being translated right now: a cycle in a pack (old cache entries) ends here
 function translate(v, lang = current, pack = null, strict = false) {
   if (typeof v !== 'string' || lang === 'it' || !v) return v;
   const r = (pack && Object.prototype.hasOwnProperty.call(pack, v) && pack[v]) || REG.get(v);
-  if (r) return fill(lookup(r[0], lang), r[1], lang, pack);
+  if (r && !ACTIVE.has(v)) {
+    ACTIVE.add(v);
+    try { return fill(lookup(r[0], lang), r[1], lang, pack); } finally { ACTIVE.delete(v); }
+  }
   return lookup(v, lang, strict);
 }
 
@@ -170,4 +184,4 @@ function finish(result, lang) {
 /** All the dictionary entries (for the interface and the consistency checks) */
 function entries() { return dict(); }
 
-module.exports = { savedLanguage, LANGUAGES, CODES, COLUMN, normalize, setLanguage, getLanguage, locale, lookup, t, tl, m, translate, localize, pack, finish, entries };
+module.exports = { savedLanguage, systemLanguage, LANGUAGES, CODES, COLUMN, normalize, setLanguage, getLanguage, locale, lookup, t, tl, m, translate, localize, pack, finish, entries };

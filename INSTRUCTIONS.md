@@ -22,7 +22,7 @@ All the files are on the **[Releases](https://github.com/anvex2012/Gauntler/rele
 | Linux (64-bit) | `Gauntler-<version>-Linux-x64.tar.gz` |
 | Source code (terminal use) | **Source code (zip)**, or on GitHub **Code → Download ZIP** |
 
-`SHA256SUMS.txt` contains the fingerprints to verify the downloaded files (`shasum -a 256 -c SHA256SUMS.txt`).
+`SHA256SUMS.txt` contains the fingerprints to verify the downloaded files. Download it next to the package and run `shasum -a 256 -c SHA256SUMS.txt --ignore-missing` (Windows: `Get-FileHash <file>` in PowerShell and compare): every line must say `OK`.
 
 Either way, **after the first launch the `gauntler` command works from any terminal folder.**
 
@@ -94,9 +94,11 @@ Gauntler is available in **Italian, English, Spanish, French and German** (inter
    Progress is shown at the top of the window. If needed, macOS asks for the administrator password with its own window.
 
 ### Method 2 — with a command in the Terminal (optional)
-If you prefer the terminal, this command installs and opens the app **without the first-launch block**, because files downloaded with `curl` are not quarantined:
+If you prefer the terminal, the installation script downloads the app and installs it. Files downloaded with `curl` do not get the macOS quarantine flag, so the first-launch confirmation does not appear: that is why **the script itself verifies the SHA-256 fingerprint** before installing. Read it first (it is short):
 ```bash
-curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh -o install.sh
+less install.sh
+sh install.sh
 ```
 The script:
 - downloads the latest version and verifies its SHA-256 fingerprint;
@@ -289,12 +291,9 @@ The graphical picker exists only on macOS. On Linux and Windows drag the file in
 The release app is for Apple silicon (M1 and later). On an Intel Mac use the terminal version (section 1), or build the app on your Mac with `npm install && npm run package`.
 
 **macOS says the app is damaged, that Apple cannot verify it, or that it cannot be opened**
-The app is not notarized by Apple, and macOS blocks apps downloaded from the browser. Two solutions:
+The app is not notarized by Apple yet, and macOS blocks apps downloaded from the browser. First check the download with `SHA256SUMS.txt` (see "Where to download"), then:
 - **System Settings → Privacy & Security → Open Anyway** (see section 2, method 1);
-- or reinstall with the method 2 command, which is not blocked:
-  ```bash
-  curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
-  ```
+- or install with the script of method 2, which verifies the fingerprint itself.
 
 **The `gauntler` command uses an old version**
 If you installed it from the sources, `gauntler` always uses the code in the project folder. If you use it through the app, replace the app in Applications with the new one.
@@ -317,6 +316,6 @@ To prevent the command from installing itself on first launch, set `GAUNTLER_NO_
 
 ## License
 
-Gauntler is created by **anvex2012** and distributed under the **Gauntler Custom Source Code License 1.0**: see [`LICENSE.txt`](LICENSE.txt).
+Gauntler is created by **anvex2012** and distributed under the **Gauntler Custom Source Code License 1.0**: see [`LICENSE.txt`](LICENSE.txt). It is source-available (free to use, study and modify; selling it is not allowed), not open source in the OSI sense.
 
 © 2026 anvex2012

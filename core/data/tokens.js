@@ -87,8 +87,10 @@ const T = [
   ['temp_path', String.raw`%TEMP%|\$env:TEMP|%APPDATA%|\$env:APPDATA|GetTempPath|/tmp/[\w.-]+`, 'info', 'fs', 'Cartella temporanea', 'Scrittura in cartelle temporanee (dove i dropper salvano i payload).'],
   ['startup_folder', String.raw`\\{1,2}Start Menu\\{1,2}Programs\\{1,2}Startup|shell:startup`, 'high', 'persist', 'Cartella Esecuzione automatica', 'File copiato per avviarsi a ogni accesso.'],
   ['attrib_hide', String.raw`\battrib\s+\+[hs]\b|\.Attributes\s*=\s*['"]?Hidden`, 'medium', 'evasion', 'Nasconde file', 'Rende un file nascosto/di sistema.'],
-  ['chmod_x', String.raw`\bchmod\s+(?:\+x|[0-7]?7[0-7][0-7])\s`, 'low', 'fs', 'chmod +x', 'Rende un file eseguibile.'],
+  // Order matters (one combined regex, the first rule that matches wins): SUID, then world-writable, then +x
   ['chmod_suid', String.raw`\bchmod\s+(?:u\+s|[2467][0-7]{3})\s`, 'high', 'priv', 'SUID', 'Imposta i permessi SUID (escalation di privilegi).'],
+  ['chmod_world', String.raw`\bchmod\s+(?:-R\s+)?(?:[0-7]?[0-7][0-7][2367]|[ao]?\+[rx]*w|o\+[rx]*w)\s`, 'medium', 'fs', 'chmod 777', 'Rende un file scrivibile da tutti gli utenti: chiunque può modificarlo o sostituirlo.'],
+  ['chmod_x', String.raw`\bchmod\s+(?:-R\s+)?(?:[ugoa]*\+x|[0-7]?7[0-7][0145])\s`, 'low', 'fs', 'chmod +x', 'Rende un file eseguibile.'],
   ['ld_preload', String.raw`/etc/ld\.so\.preload|LD_PRELOAD=`, 'high', 'inject', 'LD_PRELOAD', 'Inietta librerie in tutti i processi (tecnica rootkit).'],
   ['zone_identifier', String.raw`Zone\.Identifier|Unblock-File`, 'medium', 'evasion', 'Rimozione Mark-of-the-Web', 'Rimuove il contrassegno "scaricato da Internet".'],
   ['quarantine_rm', String.raw`xattr\s+-[a-z]*d[a-z]*\s+com\.apple\.quarantine|xattr\s+-c\b`, 'high', 'evasion', 'Rimozione quarantena macOS', 'Aggira Gatekeeper rimuovendo la quarantena.'],

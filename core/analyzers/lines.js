@@ -9,6 +9,7 @@ const BIN_SKIP = new Set(['obf', 'web', 'social', 'deser']);
 const COMBINED = new RegExp(TOKENS.map((t) => `(${t[1]})`).join('|'), 'gi');
 const LOWER = { critical: 'high', high: 'medium', medium: 'low', low: 'info', info: 'info' };
 
+const RTL_TEXT = /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufefc]/; // Hebrew, Arabic, Syriac, Thaana… letters
 const BIDI = /[‪-‮⁦-⁩]/g;                       // Trojan Source (CVE-2021-42574)
 const ZERO_WIDTH = /[​-‍⁠᠎](?!$)/g;
 const HOMOGLYPH = /[A-Za-z][Ѐ-ӿͰ-Ͽ]|[Ѐ-ӿͰ-Ͽ][A-Za-z]/g;
@@ -71,6 +72,8 @@ module.exports = {
           let g = 1;
           while (g < m.length && m[g] === undefined) g++;
           const tok = TOKENS[g - 1];
+          // A private-key header inside a program is a format constant (ssh-keygen, openssl): a key needs its base64 body
+          if (tok && tok[0] === 'private_key_marker' && !/[A-Za-z0-9+/]{40}/.test(s.s.slice(m.index + m[0].length))) continue;
           if (tok && (!BIN_SKIP.has(tok[3]) || tok[2] === 'critical')) hit(tok, { offset: s.o }, (s.e === 'u' ? '[UTF-16] ' : '') + s.s, sevFor(tok, ctx, unit));
         }
       }
@@ -93,7 +96,9 @@ module.exports = {
       }
     };
     const isCode = ctx.type.family === 'script' || ctx.type.family === 'markup' || unit.extractedKind === 'macro' || unit.extractedKind === 'js';
-    special(BIDI, 'bidi', isCode ? 'critical' : 'medium', 'Caratteri di inversione del testo (Trojan Source)', 'Il codice mostrato è diverso da quello eseguito (CVE-2021-42574).');
+    // Pages in Hebrew/Arabic/Persian/Urdu use direction controls legitimately: there only code (scripts, JS) stays critical
+    const rtlMarkup = ctx.type.family === 'markup' && unit.extractedKind !== 'js' && RTL_TEXT.test(t);
+    special(BIDI, 'bidi', rtlMarkup ? 'info' : isCode ? 'critical' : 'medium', 'Caratteri di inversione del testo (Trojan Source)', 'Il codice mostrato è diverso da quello eseguito (CVE-2021-42574).');
     special(ZERO_WIDTH, 'zw', isCode ? 'medium' : 'low', 'Caratteri invisibili a larghezza zero', 'Caratteri che non si vedono ma cambiano il significato del testo.');
     special(HOMOGLYPH, 'homo', isCode ? 'medium' : 'low', 'Omoglifi (lettere cirilliche/greche mescolate)', 'Lettere straniere identiche a quelle latine per ingannare.');
     if (ctx.isText) special(CONTROL, 'ctrl', 'low', 'Caratteri di controllo nel testo', 'Byte non stampabili inseriti nel testo.');

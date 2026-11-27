@@ -6,6 +6,12 @@
  *   npm run package
  * No extra dependencies: the bundled Electron.app is copied, renamed, given the icon and
  * re-signed ad hoc (required on Apple Silicon after the bundle is modified).
+ *
+ * Signing for distribution (optional): with a "Developer ID Application" certificate in the Keychain
+ *   GAUNTLER_SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"   signs with the hardened runtime
+ *   GAUNTLER_NOTARY_PROFILE=gauntler                                     also notarizes and staples the app
+ * The profile is created once with: xcrun notarytool store-credentials gauntler --apple-id … --team-id …
+ * Then macOS opens the app with no "Open Anyway" step.
  */
 const fs = require('fs');
 const path = require('path');
@@ -61,10 +67,30 @@ fs.copyFileSync(path.join(ROOT, 'LICENSE.txt'), path.join(appDir, 'LICENSE.txt')
 const { devDependencies, scripts, ...runtimePkg } = pkg;
 fs.writeFileSync(path.join(appDir, 'package.json'), JSON.stringify({ ...runtimePkg, productName: 'Gauntler', dependencies: {} }, null, 2));
 
-console.log('5/5 Ad-hoc signing…');
-run('codesign', ['--force', '--deep', '--sign', '-', APP], { stdio: ['ignore', 'ignore', 'inherit'] });
-run('touch', [APP]); // refreshes the Finder icon cache
+const IDENTITY = process.env.GAUNTLER_SIGN_IDENTITY;
+const NOTARY_PROFILE = process.env.GAUNTLER_NOTARY_PROFILE;
 
-const size = execFileSync('du', ['-sh', APP], { encoding: 'utf8' }).split('\t')[0];
-console.log(`\nCreated: ${path.relative(ROOT, APP)} (${size})`);
-console.log('Drag it to Applications (or the Desktop) and double-click it.');
+(async () => {
+  if (!IDENTITY) {
+    console.log('5/5 Ad-hoc signing… (set GAUNTLER_SIGN_IDENTITY to sign with a Developer ID)');
+    run('codesign', ['--force', '--deep', '--sign', '-', APP], { stdio: ['ignore', 'ignore', 'inherit'] });
+  } else {
+    console.log(`5/5 Signing with "${IDENTITY}" (hardened runtime)…`);
+    const { sign } = require('@electron/osx-sign');
+    const entitlements = path.join(ROOT, 'build', 'entitlements.mac.plist');
+    // Every nested binary is signed from the inside out, each with the hardened runtime and the same minimal entitlements
+    await sign({ app: APP, identity: IDENTITY, platform: 'darwin', optionsForFile: () => ({ hardenedRuntime: true, entitlements }) });
+    run('codesign', ['--verify', '--deep', '--strict', '--verbose=2', APP]);
+    if (NOTARY_PROFILE) {
+      console.log(`   Notarization (profile "${NOTARY_PROFILE}"): a few minutes…`);
+      const { notarize } = require('@electron/notarize');
+      await notarize({ appPath: APP, keychainProfile: NOTARY_PROFILE });
+      run('xcrun', ['stapler', 'validate', APP]);
+    } else console.log('   Not notarized (set GAUNTLER_NOTARY_PROFILE): macOS will still ask to confirm the first launch.');
+  }
+  run('touch', [APP]); // refreshes the Finder icon cache
+
+  const size = execFileSync('du', ['-sh', APP], { encoding: 'utf8' }).split('\t')[0];
+  console.log(`\nCreated: ${path.relative(ROOT, APP)} (${size})`);
+  console.log('Drag it to Applications (or the Desktop) and double-click it.');
+})().catch((e) => { console.error(e.message || e); process.exit(1); });

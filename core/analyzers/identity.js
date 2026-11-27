@@ -5,7 +5,11 @@ const { EXT_EXPECT, DANGEROUS_EXT } = require('../filetype');
 
 const EXEC_EXT_OK = ['exe', 'dll', 'sys', 'scr', 'so', 'dylib', 'bin', 'elf', 'o', 'out', 'node', 'app', 'efi', 'ocx', 'drv', 'cpl', 'mui', 'class', 'dex', 'wasm', 'x86_64', 'arm64', 'bundle', 'ko', 'axf', 'prx', 'mod', ''];
 const DECOY = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif', 'txt', 'mp3', 'mp4', 'mov', 'zip', 'rtf', 'csv', 'html', 'odt'];
-const LURE = /(fattur|invoice|pagament|payment|bonifico|ordine|order|spedizion|shipping|dhl|ups|fedex|scontrino|receipt|contratto|contract|curriculum|resume|cv[_ -]|urgente|urgent|preventivo|quotation|rfq|po[_ -]?\d|swift|estratto|statement|verbale|multa|tax|f24|cud|busta\s?paga|payslip|salary|bank|banca|password|aggiornamento|update|setup|crack|keygen|activator|patch|loader)/i;
+// Bait words as whole words: "invoice.exe", "Fattura_2024.exe", "MyInvoice.exe" (CamelCase is split first),
+// not "groups", "syntax", "dispatch" or "border" (substrings of ordinary names). Stems (fattur-, pagament-…) take any ending.
+const LURE_WORDS = 'invoice|payment|bonifico|ordine|order|shipping|dhl|ups|fedex|scontrino|receipt|contratto|contract|curriculum|resume|urgente|urgent|preventivo|quotation|rfq|swift|estratto|statement|verbale|multa|tax|f24|cud|payslip|salary|bank|banca|password|aggiornamento|update|updater|setup|crack|keygen|activator|patch|loader';
+const LURE_RE = new RegExp(`(?:^|[^a-z])(?:(?:fattur|pagament|spedizion)[a-z]*|busta ?paga|cv(?=[_ -])|po[_ -]?\\d|(?:${LURE_WORDS})(?:e?s)?(?![a-z]))`);
+const LURE = { test: (name) => LURE_RE.test(String(name).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()) };
 
 module.exports = {
   id: 'identity',

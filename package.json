@@ -1,6 +1,6 @@
 {
   "name": "gauntler",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "Gauntler - file security analyzer (Electron GUI + CLI)",
   "main": "electron/main.js",
   "bin": {

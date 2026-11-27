@@ -58,6 +58,14 @@ catch {
 run(py, ['-m', 'dmgbuild', '-s', path.join(__dirname, 'dmg-settings.py'),
   '-D', `app=${APP}`, '-D', `background=${path.join(ROOT, 'build', 'dmg-background.png')}`, '-D', `icon=${path.join(ROOT, 'build', 'icon.icns')}`,
   `Gauntler ${V}`, dmgOut], { stdio: ['ignore', 'ignore', 'inherit'] });
+// With a Developer ID (see package-mac.js) the disk image is signed and notarized too, so it opens with no warning
+if (process.env.GAUNTLER_SIGN_IDENTITY) {
+  run('codesign', ['--force', '--sign', process.env.GAUNTLER_SIGN_IDENTITY, '--timestamp', dmgOut]);
+  if (process.env.GAUNTLER_NOTARY_PROFILE) {
+    run('xcrun', ['notarytool', 'submit', dmgOut, '--keychain-profile', process.env.GAUNTLER_NOTARY_PROFILE, '--wait']);
+    run('xcrun', ['stapler', 'staple', dmgOut]);
+  }
+}
 
 /* ── Common app folder for Windows and Linux (same content as the macOS app) ── */
 step('App code for Windows and Linux');

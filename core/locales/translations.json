@@ -4877,6 +4877,12 @@
   "Signatures antivirus",
   "Virensignaturen"
  ],
+ "Firme antivirus ClamAV mancanti: scaricale con \"gauntler update\"": [
+  "ClamAV virus signatures missing: download them with \"gauntler update\"",
+  "Faltan las firmas antivirus de ClamAV: descárgalas con \"gauntler update\"",
+  "Signatures antivirus ClamAV manquantes : téléchargez-les avec « gauntler update »",
+  "ClamAV-Virensignaturen fehlen: lade sie mit \"gauntler update\" herunter"
+ ],
  "Firme antivirus già presenti": [
   "Antivirus signatures already present",
   "Firmas antivirus ya presentes",
@@ -9562,6 +9568,12 @@
   "Hace que un fichero sea oculto/de sistema.",
   "Rend un fichier caché/système.",
   "Macht eine Datei versteckt/zur Systemdatei."
+ ],
+ "Rende un file scrivibile da tutti gli utenti: chiunque può modificarlo o sostituirlo.": [
+  "Makes a file writable by every user: anyone can modify or replace it.",
+  "Hace que un fichero sea modificable por todos los usuarios: cualquiera puede cambiarlo o sustituirlo.",
+  "Rend un fichier modifiable par tous les utilisateurs : n'importe qui peut le modifier ou le remplacer.",
+  "Macht eine Datei für alle Benutzer beschreibbar: jeder kann sie ändern oder ersetzen."
  ],
  "Reply-To coerente": [
   "Consistent Reply-To",

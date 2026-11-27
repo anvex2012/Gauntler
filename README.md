@@ -1,16 +1,22 @@
 <!-- Created by anvex2012 -->
 # Gauntler
 
-Security analyzer for **any kind of file**: desktop app (Electron + React) and terminal tool.
-The whole analysis is **local**: no file is ever sent over the Internet.
+Static security analyzer for files (programs, documents, archives, scripts, emails, images): desktop app (Electron + React) and terminal tool.
+The whole analysis is **local**: no file is ever sent over the Internet. Measured false-positive rate on 5,633 clean files: **0.12%** ([details](#measured-results)).
 
 > **Step-by-step installation and usage:** see [INSTRUCTIONS.md](INSTRUCTIONS.md).
 >
-> **macOS:** download the `.dmg` from [Releases](https://github.com/anvex2012/Gauntler/releases/latest), drag Gauntler to Applications and open it: on first launch the app installs the `gauntler` command, ClamAV and bsdtar by itself.
->
-> **Installation from the terminal (macOS and Linux, optional):**
+> **Recommended:** download the package for your system from [Releases](https://github.com/anvex2012/Gauntler/releases/latest) together with `SHA256SUMS.txt`, and check it before opening it:
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh | sh
+> shasum -a 256 -c SHA256SUMS.txt --ignore-missing
+> ```
+> macOS: open the `.dmg` and drag Gauntler to Applications. On first launch the app installs the `gauntler` command, ClamAV and bsdtar by itself, if they are missing (to turn this off: `GAUNTLER_NO_AUTOINSTALL=1`).
+> The release builds are **not yet notarized by Apple / signed for Windows**: the first launch needs a confirmation (see [INSTRUCTIONS.md](INSTRUCTIONS.md)).
+>
+> **Installation script (macOS and Linux, optional).** Read it before running it — it is short ([`install.sh`](install.sh)): it downloads the release, verifies its SHA-256 and copies the app.
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/anvex2012/Gauntler/main/install.sh -o install.sh
+> less install.sh && sh install.sh
 > ```
 
 **Languages:** Italian, English, Spanish, French and German — app, terminal and analysis results. The language is chosen on first use and can be changed at any time (app: Settings → Appearance → Language; terminal: `gauntler language`).
@@ -25,16 +31,16 @@ Every file gets an **overall score from 1 to 100** (100 = safe) and a score for 
 | 15–39 | Dangerous |
 | 1–14 | Malicious |
 
-## In-depth analysis, no limits
+## In-depth analysis
 
-- **Files of any size**: analysis in 64 MB overlapping blocks, 100% of the bytes (even multi-GB files).
+- **Large files**: analysis in 64 MB overlapping blocks covering every byte (multi-GB files included).
 - **Every line, every word**: over 200 indicators applied to every line (or to every string extracted from binaries), with an explanation for each flagged line.
 - **No occurrence limit**: every match is reported with its location (line/offset).
 - **Recursive decoding**: base64, MIME base64, data URIs, hex, charcodes, gzip/zlib, PowerShell `-EncodedCommand`, up to 10 nested levels. Every decoded payload is re-analyzed by all criteria.
 - **Deep extraction**: decompressed VBA macros (MS-OVBA), every decompressed PDF stream (Flate/ASCIIHex/ASCII85) + visible text, Office XML parts, RTF objects, PDF attachments, data appended to images.
 - **Archives**: ZIP/JAR/APK (including ZIP64 and password-protected: over 30 common passwords + custom passwords), TAR, GZIP, RAR/7z/ISO/CAB/PKG/XZ/BZ2 through 7-Zip/bsdtar. Every inner file is analyzed with all criteria, recursively (up to 12 levels, against "zip quines").
 - **Protection against decompression bombs** (ZIP, nested ZIPs, overlapping entries, GZIP, PDF streams, encoded gzip/zlib payloads, 7-Zip/xz/bzip2): a single budget for the whole analysis of a file, with strict limits — 256 MB per object, 1 GB decompressed in total, 100:1 compression ratio (above 16 MB), 10,000 files, 2 GB of memory. When a limit is exceeded, extraction and analysis stop immediately and the file gets a critical finding. Limits can be changed with `"limits"` in `~/.gauntler/config.json` (`maxEntryBytes`, `maxTotalBytes`, `maxRatio`, `ratioMinBytes`, `maxFiles`, `maxMemoryBytes`). Archives opened with bsdtar are converted into a tar stream read in memory with an exact cap (nothing decompressed touches the disk); 7-Zip and unar extract to disk under continuous monitoring and are stopped as soon as they exceed the limit.
-- **ClamAV with no limits**: file size, recursion, heuristics, macros, encrypted archives.
+- **ClamAV with raised limits** (file size, recursion) and every optional detection enabled (heuristics, macros, encrypted archives).
 
 ## Criteria (17, each scored 1–100)
 
@@ -127,7 +133,8 @@ npm test           # tests on generated samples (EICAR, droppers, PDF, ZIP…)
 
 You can also open files directly: `npx electron . file1 file2`
 
-**Desktop app (macOS)**: `npm run package` creates `release/Gauntler.app` with Gauntler's name and icon, ad-hoc signed; drag it to Applications and double-click it. On first launch, if macOS blocks it because it does not come from an identified developer: right-click the app → Open.
+**Desktop app (macOS)**: `npm run package` creates `release/Gauntler.app` with Gauntler's name and icon, ad-hoc signed; drag it to Applications and double-click it. On first launch, if macOS blocks it because it does not come from an identified developer: System Settings → Privacy & Security → Open Anyway.
+With a *Developer ID Application* certificate, `GAUNTLER_SIGN_IDENTITY="Developer ID Application: …"` signs the app with the hardened runtime (only entitlement: `allow-jit`, in `build/entitlements.mac.plist`), and `GAUNTLER_NOTARY_PROFILE=<profile>` (created with `xcrun notarytool store-credentials`) also notarizes and staples the app and the `.dmg`.
 
 **`gauntler` terminal command**: it installs **itself** on first launch, both from the sources (`node cli/gauntler.js`) and when opening the desktop app; if needed it adds `~/.local/bin` to the PATH in `~/.zshrc` (block marked `# >>> gauntler >>>`). It can also be installed manually: from the app, Settings → System → Install; or `npm run install-cli`. Together with the command, **ClamAV** (with antivirus signatures in `~/.gauntler/clamav`) and **bsdtar** are installed if missing: Homebrew or the official package on macOS, the package manager on Linux, winget/MSI on Windows. Run it again with `gauntler setup`. To disable automatic installation: `GAUNTLER_NO_AUTOINSTALL=1`. It creates `~/.local/bin/gauntler` (no sudo) which uses the engine included in Gauntler.app, so it also works without Node.js. `gauntler app [file…]` opens the desktop app with the files to analyze; `gauntler uninstall-command` removes the command.
 
@@ -197,18 +204,50 @@ gauntler config add passwords infected2024 && gauntler config add exclude "**/.g
 - **New internal rules**: `core/data/rules.js` (signatures) and `core/data/tokens.js` (line-by-line indicators).
 - **New criterion**: a module in `core/analyzers/` (`{ id, name, weight, applies(ctx), run(ctx) }`) registered in `core/index.js`.
 - **Translations**: `core/locales/translations.json` maps each Italian text (the key used in the code) to English, Spanish, French and German; texts with variables use `{name}` placeholders.
-- **Tests**: `npm test` (engine + CLI + advanced + regression), `npm run test:engine`, `npm run test:cli`, `npm run test:advanced` (disassemblers, algorithms, shellcode, CDR).
+- **Tests**: `npm test` (engine + CLI + advanced + regression), `npm run test:engine`, `npm run test:cli`, `npm run test:advanced` (disassemblers, algorithms, shellcode, CDR), `npm run test:regression`. Each suite uses its own temporary data folder.
+- **Benchmark**: `node scripts/benchmark.js --clean <dir>… [--malware <dir>…]` (see [Measured results](#measured-results)).
+
+## Measured results
+
+Numbers, not claims: `node scripts/benchmark.js` scans folders of files and counts the verdicts (temporary data folder, no cache, no network, ClamAV off so that only Gauntler's own engine is measured).
+
+**False positives** — clean files scored *Suspicious* or worse (below 70). Gauntler 2.4.3, macOS 26 on Apple silicon, 27 Nov 2026:
+
+| Clean files | Files | Safe | Low risk | Suspicious | Dangerous | Malicious | False positives |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| macOS system programs (`/bin`, `/usr/bin`, `/usr/sbin`, `/usr/libexec`, all) | 1,633 | 1,563 | 66 | 1 | 3 | 0 | **0.24%** |
+| Apps (Safari, Pages, VS Code, Obsidian, Tailscale, WhatsApp: random 2,000 files) | 2,000 | 1,992 | 7 | 0 | 1 | 0 | **0.05%** |
+| npm packages (`node_modules` of this project: random 2,000 files) | 2,000 | 1,974 | 24 | 0 | 2 | 0 | **0.10%** |
+| **Total** | **5,633** | | | | | | **0.12%** (7 files) |
+
+The 7 false positives, so you know what they look like:
+- `/usr/libexec/xprotectd` — Apple's own malware scanner: it contains malware signatures, which match Gauntler's rules.
+- `/usr/sbin/diskutil` — its help text says *run "csrutil disable" from Recovery*: matched as "disables SIP".
+- `/usr/libexec/rosetta/debugserver` — a debugger really does inject into processes and has debugging entitlements.
+- `/usr/libexec/spotlightknowledged.updater` — an executable with the extension `.updater`.
+- Three native modules (VS Code's Copilot runtime, rolldown's binding, postject's API with an embedded WebAssembly payload): strings that decode to Windows API names under a single-byte XOR.
+
+Gauntler does not trust code signatures: a file signed by Apple is analyzed like any other one. That is a choice, and these false positives are its cost.
+
+**Detection** — not published yet: a meaningful figure needs a large, recent set of real samples (e.g. from MalwareBazaar), which should only be handled inside a disposable VM. To measure it yourself:
+
+```bash
+node scripts/benchmark.js --malware ~/samples --clean /usr/bin --json results.json
+```
+
+The script never downloads malware. Reports with your numbers are welcome in the issues.
 
 ## Limitations
 
-Static analysis: the file is never run. A high score does not guarantee the absence of unknown or heavily obfuscated malware.
+Static analysis: the file is never run. A high score does not guarantee the absence of unknown or heavily obfuscated malware: Gauntler is a second opinion, not a replacement for an antivirus with behavioral protection.
+The scores come from weighted heuristics and rules, not from a trained model: they are explainable (every point lost has a finding and a line), but they are not probabilities.
 CDR neutralizes the known active content of the supported formats; it cannot fix vulnerabilities in the program that opens the file (e.g. a faulty image parser), nor make programs and scripts safe.
 The disassembler does not support MIPS/ARM32/RISC-V; .NET (IL), Java and compiled Python code is not disassembled.
 RAR/7z/ISO require 7-Zip or bsdtar (bsdtar is already included in macOS; for every format: `brew install sevenzip`). ZIP files with AES encryption and DMG images are not opened.
 
 ## License
 
-Gauntler is created by **anvex2012** and distributed under the **Gauntler Custom Source Code License 1.0** (see [`LICENSE.txt`](LICENSE.txt)).
+Gauntler is created by **anvex2012** and distributed under the **Gauntler Custom Source Code License 1.0** (see [`LICENSE.txt`](LICENSE.txt)). It is **source-available**, not open source in the OSI sense: the license forbids selling the software and requires the attribution in every file.
 
 In short: you may use, study, modify and redistribute the code **free of charge**, keeping the source code public, including the license and preserving the attribution to `anvex2012` in every file. Selling the software or derived versions is prohibited.
 

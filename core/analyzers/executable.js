@@ -26,7 +26,7 @@ const TOOLCHAIN = [
   [/AU3!EA06|AutoIt v3|AutoIt3/, 'AutoIt (molto usato da malware)', 'medium'], [/Nullsoft Install System|NSIS Error/, 'Installer NSIS', 'info'], [/Inno Setup/, 'Installer Inno Setup', 'info'],
   [/electron\.asar|Electron Framework/, 'Electron', 'info'], [/Embarcadero|Borland|Delphi/i, 'Delphi', 'info'], [/mingw|GCC: \(GNU\)/, 'GCC/MinGW', 'info'],
   [/ConfuserEx|Confused by|\.NET Reactor|SmartAssembly|Eazfuscator|Babel Obfuscator|dotNetPatcher|Dotfuscator|Agile\.NET|ArmDot|Obfuscar/, 'Offuscatore .NET', 'medium'],
-  [/BoxedAppSDK|Enigma Virtual Box/, 'Virtualizzatore di file', 'medium'], [/garble|obfuscated by garble/i, 'Offuscatore Go (garble)', 'medium'],
+  [/BoxedAppSDK|Enigma Virtual Box/, 'Virtualizzatore di file', 'medium'], [/\bgarble\b/, 'Offuscatore Go (garble)', 'medium'],
 ];
 const VERSION_KEYS = ['CompanyName', 'FileDescription', 'FileVersion', 'InternalName', 'LegalCopyright', 'OriginalFilename', 'ProductName', 'ProductVersion'];
 

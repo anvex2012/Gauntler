@@ -56,7 +56,15 @@ module.exports = {
             resolve({ findings: l2.map((l) => ({ severity: 'critical', title: msg('Virus rilevato: {sig}', { sig: l.replace(/^.*?:\s*/, '').replace(/\s*FOUND$/, '') }), detail: 'Rilevato dal database firme di ClamAV.', forceScore: 1 })), info: { Motore: 'clamscan (opzioni base)' } });
           });
         }
-        if (err && err.code !== 1 && !lines.length) return resolve({ skipped: true, reason: msg('Errore ClamAV: {msg}', { msg: String(err.message).slice(0, 120) }), findings: [] });
+        if (err && err.code !== 1 && !lines.length) {
+          const errText = String(stderr || '');
+          if (/No supported database|cli_loaddb|Can't open file or directory.*database|Database initialization error/i.test(errText)) {
+            return resolve({ skipped: true, reason: 'Firme antivirus ClamAV mancanti: scaricale con "gauntler update"', findings: [] });
+          }
+          // The real reason is in stderr: the command line in err.message says nothing to the user
+          const why = errText.split('\n').map((l) => l.replace(/^(?:LibClamAV )?(?:Error|ERROR):\s*/, '').trim()).find(Boolean) || String(err.message).split('\n')[0];
+          return resolve({ skipped: true, reason: msg('Errore ClamAV: {msg}', { msg: why.slice(0, 160) }), findings: [] });
+        }
         const findings = lines.map(l => {
           const sig = l.replace(/^.*?:\s*/, '').replace(/\s*FOUND$/, '');
           const pua = /^(PUA|Heuristics)\./.test(sig);
